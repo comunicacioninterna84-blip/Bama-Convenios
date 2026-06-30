@@ -423,7 +423,23 @@
     display:flex; align-items:center; justify-content:center; color: var(--gris); font-size:14px;
   }
 
-  select.campo-emoji{ font-size:18px; }
+  input.campo-emoji{ font-size:20px; text-align:center; width:80px; }
+  .sugerencias-emoji{
+    margin-top:8px; max-height:240px; overflow-y:auto; padding:10px;
+    border:1px solid var(--gris-borde, #e2e2e2); border-radius:10px;
+    background: var(--gris-claro, #fafafa);
+  }
+  .cat-emoji-titulo{
+    font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
+    color: var(--gris, #888); margin:10px 0 6px; 
+  }
+  .cat-emoji-titulo:first-child{ margin-top:0; }
+  .cat-emoji-fila{ display:flex; flex-wrap:wrap; gap:6px; }
+  .sugerencias-emoji button{
+    border:1px solid var(--gris-borde, #ddd); background:#fff; border-radius:8px;
+    font-size:18px; width:34px; height:34px; cursor:pointer; transition: all .15s ease; flex:0 0 auto;
+  }
+  .sugerencias-emoji button:hover{ background: var(--azul-mas-osc, #eef); border-color: var(--azul-mas-osc, #99c); transform: scale(1.1); }
 
   @media (max-width: 560px){
     .topbar h1{ font-size:14px; }
@@ -858,22 +874,9 @@
         <input type="text" id="catNombre" placeholder="Ej: Salud">
       </div>
       <div class="campo">
-        <label>Ícono (emoji de referencia)</label>
-        <select id="catIcono" class="campo-emoji">
-          <option value="🏥">🏥 Salud</option>
-          <option value="🎓">🎓 Educación</option>
-          <option value="🪪">🪪 Membresías</option>
-          <option value="⚽">⚽ Deportes</option>
-          <option value="🍽️">🍽️ Alimentos</option>
-          <option value="🏨">🏨 Hospedaje</option>
-          <option value="✈️">✈️ Viajes</option>
-          <option value="👓">👓 Ópticas</option>
-          <option value="💳">💳 Financiero</option>
-          <option value="🚗">🚗 Movilidad</option>
-          <option value="🛍️">🛍️ Compras</option>
-          <option value="🎬">🎬 Entretenimiento</option>
-          <option value="🏷️">🏷️ Otro</option>
-        </select>
+        <label>Ícono (emoji de la categoría)</label>
+        <input type="text" id="catIcono" class="campo-emoji" maxlength="4" placeholder="Escribe o pega un emoji, ej: 🐾">
+        <div class="sugerencias-emoji" id="sugerenciasEmoji"></div>
       </div>
       <div class="campo">
         <label>Descripción breve</label>
@@ -1453,6 +1456,7 @@ function renderListaCategoriasAdmin(){
 }
 
 function abrirFormCategoria(catId){
+  renderSugerenciasEmoji();
   const esEdicion = !!catId;
   document.getElementById('formCategoriaTitulo').textContent = esEdicion ? 'Editar categoría' : 'Nueva categoría';
   document.getElementById('catEditId').value = catId || '';
@@ -1474,13 +1478,54 @@ function abrirFormCategoria(catId){
     }
   }else{
     document.getElementById('catNombre').value = '';
-    document.getElementById('catIcono').value = '🏥';
+    document.getElementById('catIcono').value = '';
     document.getElementById('catDescripcion').value = '';
   }
   document.getElementById('formCategoriaOverlay').classList.add('activo');
 }
 function cerrarFormCategoria(){
   document.getElementById('formCategoriaOverlay').classList.remove('activo');
+}
+function elegirEmoji(emoji){
+  document.getElementById('catIcono').value = emoji;
+}
+const EMOJIS_SUGERIDOS = {
+  'Salud y bienestar': ['🏥','💊','🩺','🦷','🧠','🧬','🩹','🧴','🩻','💉','🧘','🧘‍♀️','🧴','🛌','🦴','🫀','🫁','🧑‍⚕️'],
+  'Educación': ['🎓','📚','✏️','🎒','🖊️','🔬','🧮','📖','📝','🏫','🧑‍🏫','📐','🔍'],
+  'Membresías y documentos': ['🪪','🎟️','🎫','🏷️','📇','🆔','📋','🗂️','📌'],
+  'Deportes': ['⚽','🏀','🏈','🎾','🏐','🏓','🥊','🏋️','🚴','🏊','⛳','🏸','🥋','🤸','🏹','🛹','🏂','⛷️','🏆','🥇'],
+  'Alimentos y bebidas': ['🍽️','🍔','🍕','🍣','🍩','☕','🍷','🍺','🥗','🍰','🍪','🍦','🍫','🥪','🌮','🍜','🍱','🧁','🍷','🍹','🍳'],
+  'Hospedaje y hogar': ['🏨','🛏️','🏖️','🏕️','🏠','🏡','🛋️','🔧','🪛','🧹','🛁','🚪','🧺','🛠️'],
+  'Viajes': ['✈️','🧳','🚆','🛳️','🗺️','🌎','🚉','🛫','🛬','🚢','🏝️','⛺','🗽'],
+  'Ópticas y accesorios': ['👓','🕶️','👁️','💍','👜','🧢','👒'],
+  'Financiero': ['💳','💰','🏦','📈','💸','🪙','💵','📊','🧾','💱'],
+  'Movilidad': ['🚗','🚕','🛵','🚲','⛽','🛞','🚌','🚖','🚓','🛺','🚦'],
+  'Compras': ['🛍️','👗','👟','💄','🛒','👔','👠','🧴'],
+  'Entretenimiento': ['🎬','🎮','🎵','🎤','🎨','🎭','🎲','🎸','🎹','🎟️','🍿','🎟️'],
+  'Fotografía y video': ['📷','📸','📹','🎥','🖼️','🎞️','📽️','🪞','🌅'],
+  'Mascotas': ['🐾','🐶','🐱','🐰','🐦','🐠','🐢'],
+  'Tecnología': ['💻','📱','🖥️','⌨️','🖱️','📡','🔌','🔋','🖨️','💾','📞'],
+  'Fiestas y celebraciones': ['🎉','🎁','🎊','🥳','🎈','🎆','🍾'],
+  'Familia': ['👶','🧸','👨‍👩‍👧','👪','🤱'],
+  'Legal y trámites': ['⚖️','📄','✍️','🖋️','📑'],
+  'Otros': ['🐝','🌿','♻️','💡','🌐','📦','🧩','⭐','✅','🔔','🛡️','🌟']
+};
+function renderSugerenciasEmoji(){
+  const cont = document.getElementById('sugerenciasEmoji');
+  if(!cont) return;
+  const vistos = new Set();
+  let html = '';
+  Object.keys(EMOJIS_SUGERIDOS).forEach(categoria=>{
+    const botones = EMOJIS_SUGERIDOS[categoria].filter(e=>{
+      if(vistos.has(e)) return false;
+      vistos.add(e);
+      return true;
+    }).map(e=>`<button type="button" onclick="elegirEmoji('${e}')">${e}</button>`).join('');
+    if(botones){
+      html += `<div class="cat-emoji-titulo">${categoria}</div><div class="cat-emoji-fila">${botones}</div>`;
+    }
+  });
+  cont.innerHTML = html;
 }
 
 async function guardarCategoria(){
