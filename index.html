@@ -636,6 +636,7 @@
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 </head>
 <body>
 
@@ -735,15 +736,19 @@
       <button onclick="cerrarModalClave()">✕</button>
     </div>
     <div class="admin-body">
-      <p style="font-size:13px;color:#6B7280;margin:0 0 16px;">Ingresa la clave para activar el modo edición. Sin la clave, esta página se ve solo en modo lectura.</p>
+      <p style="font-size:13px;color:#6B7280;margin:0 0 16px;">Inicia sesión con tu cuenta de administrador para activar el modo edición. Sin sesión, esta página se ve solo en modo lectura.</p>
       <div class="campo">
-        <label>Clave</label>
-        <input type="password" id="inputClaveEdicion" placeholder="••••••" onkeydown="if(event.key==='Enter') validarClaveEdicion()">
+        <label>Correo</label>
+        <input type="email" id="inputCorreoEdicion" placeholder="tu-correo@ejemplo.com" autocomplete="username">
       </div>
-      <p id="claveError" style="display:none;color:#c0392b;font-size:12.5px;margin:-6px 0 14px;">Clave incorrecta. Intenta de nuevo.</p>
+      <div class="campo">
+        <label>Contraseña</label>
+        <input type="password" id="inputClaveEdicion" placeholder="••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter') validarClaveEdicion()">
+      </div>
+      <p id="claveError" style="display:none;color:#c0392b;font-size:12.5px;margin:-6px 0 14px;">Correo o contraseña incorrectos. Intenta de nuevo.</p>
       <div class="fila-botones">
         <button class="btn-secundario" onclick="cerrarModalClave()">Cancelar</button>
-        <button class="btn-primario" onclick="validarClaveEdicion()">Desbloquear edición</button>
+        <button class="btn-primario" id="btnValidarClave" onclick="validarClaveEdicion()">Desbloquear edición</button>
       </div>
     </div>
   </div>
@@ -1008,8 +1013,9 @@ let filtroPromoActivo = 'todos';
 // Se activa únicamente si la persona escribe la clave correcta, y dura
 // solo mientras esta pestaña/sesión del navegador esté abierta.
 let modoEdicion = false;
-const CLAVE_EDICION = 'bama2026';
-const CLAVE_RECORDAR_EDICION = 'bama:sesion-edicion';
+// La contraseña ya NO vive aquí en texto plano. El acceso ahora se valida
+// con Firebase Authentication (correo + contraseña reales, verificados
+// por el servidor de Firebase, no por este archivo).
 
 const CLAVE_CATEGORIAS = 'bama:categorias';
 const CLAVE_CONVENIOS_INDICE = 'bama:convenios-index';
@@ -1322,32 +1328,50 @@ function cerrarModalDetalleClickFuera(e){
    ========================================================= */
 function manejarClickCandado(){
   if(modoEdicion){
-    // Si ya está desbloqueado, un clic permite volver a modo lectura
-    if(confirm('¿Volver a modo solo lectura? Podrás desbloquear de nuevo con la clave cuando quieras.')){
-      desactivarModoEdicion();
+    // Si ya está desbloqueado, un clic permite volver a modo lectura (cierra sesión de verdad)
+    if(confirm('¿Volver a modo solo lectura? Vas a cerrar tu sesión de administrador en este dispositivo.')){
+      firebase.auth().signOut();
     }
   }else{
     abrirModalClave();
   }
 }
 function abrirModalClave(){
+  document.getElementById('inputCorreoEdicion').value = '';
   document.getElementById('inputClaveEdicion').value = '';
   document.getElementById('claveError').style.display = 'none';
   document.getElementById('claveOverlay').classList.add('activo');
-  setTimeout(()=> document.getElementById('inputClaveEdicion').focus(), 50);
+  setTimeout(()=> document.getElementById('inputCorreoEdicion').focus(), 50);
 }
 function cerrarModalClave(){
   document.getElementById('claveOverlay').classList.remove('activo');
 }
-function validarClaveEdicion(){
-  const valor = document.getElementById('inputClaveEdicion').value;
-  if(valor === CLAVE_EDICION){
-    activarModoEdicion();
+async function validarClaveEdicion(){
+  const correo = document.getElementById('inputCorreoEdicion').value.trim();
+  const clave = document.getElementById('inputClaveEdicion').value;
+  const boton = document.getElementById('btnValidarClave');
+  if(!correo || !clave){
+    document.getElementById('claveError').textContent = 'Escribe tu correo y contraseña.';
+    document.getElementById('claveError').style.display = 'block';
+    return;
+  }
+  document.getElementById('claveError').style.display = 'none';
+  boton.disabled = true;
+  boton.textContent = 'Verificando…';
+  try{
+    // Firebase valida el correo/contraseña contra su servidor: nada de esto
+    // viaja en el código fuente ni se puede leer inspeccionando la página.
+    await firebase.auth().signInWithEmailAndPassword(correo, clave);
     cerrarModalClave();
     mostrarAviso('Modo edición activado ✓');
-    recordarModoEdicion(true);
-  }else{
+    // activarModoEdicion() se dispara solo mediante onAuthStateChanged
+  }catch(err){
+    console.warn('Error de acceso:', err.code);
+    document.getElementById('claveError').textContent = 'Correo o contraseña incorrectos.';
     document.getElementById('claveError').style.display = 'block';
+  }finally{
+    boton.disabled = false;
+    boton.textContent = 'Desbloquear edición';
   }
 }
 function activarModoEdicion(){
@@ -1364,19 +1388,18 @@ function desactivarModoEdicion(){
   document.getElementById('btnCandado').classList.remove('desbloqueado');
   document.getElementById('btnCandado').title = 'Acceso de edición';
   cerrarAdmin();
-  recordarModoEdicion(false);
 }
 
-// Guarda si este navegador ya desbloqueó el modo edición.
-function recordarModoEdicion(activo){
-  if(activo){ lsSet(CLAVE_RECORDAR_EDICION, 'activo'); }
-  else{ lsDel(CLAVE_RECORDAR_EDICION); }
-}
+// Firebase Auth mantiene la sesión de forma segura (token cifrado, no un
+// simple "sí/no" en localStorage). Esta función reacciona automáticamente
+// cuando inicias o cierras sesión, en cualquier pestaña o recarga.
+firebase.auth().onAuthStateChanged(function(usuario){
+  if(usuario){ activarModoEdicion(); }
+  else{ desactivarModoEdicion(); }
+});
 
-// Al cargar la página, revisa si el modo edición estaba activo y lo reactiva.
-function restaurarModoEdicionSiAplica(){
-  if(lsGet(CLAVE_RECORDAR_EDICION) === 'activo') activarModoEdicion();
-}
+// Ya no se necesita: Firebase Auth restaura la sesión automáticamente.
+function restaurarModoEdicionSiAplica(){ /* manejado por onAuthStateChanged */ }
 
 /* =========================================================
    PANEL ADMIN — navegación
