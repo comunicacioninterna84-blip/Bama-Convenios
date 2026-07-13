@@ -1393,6 +1393,9 @@ function desactivarModoEdicion(){
 // Firebase Auth mantiene la sesión de forma segura (token cifrado, no un
 // simple "sí/no" en localStorage). Esta función reacciona automáticamente
 // cuando inicias o cierras sesión, en cualquier pestaña o recarga.
+// IMPORTANTE: hay que inicializar la app de Firebase ANTES de usar
+// firebase.auth(), o toda la página se detiene con un error.
+if(!firebase.apps.length) firebase.initializeApp(FB_CONFIG);
 firebase.auth().onAuthStateChanged(function(usuario){
   if(usuario){ activarModoEdicion(); }
   else{ desactivarModoEdicion(); }
