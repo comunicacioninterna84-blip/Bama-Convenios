@@ -425,6 +425,39 @@
 
   select.campo-emoji{ font-size:18px; }
 
+  .icono-picker{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+  .icono-picker-actual{
+    width:46px; height:46px; border-radius:12px; background: var(--gris-claro);
+    display:flex; align-items:center; justify-content:center; font-size:22px;
+    flex-shrink:0; border:2px solid var(--azul);
+  }
+  .icono-picker input[type=text]{ flex:1; margin:0; }
+  .icono-grid-tabs{
+    display:flex; gap:6px; overflow-x:auto; padding-bottom:8px; margin-bottom:2px;
+    scrollbar-width: thin;
+  }
+  .icono-grid-tab{
+    flex-shrink:0; background: var(--gris-claro); border:none; color: var(--gris);
+    padding:6px 12px; border-radius:999px; font-size:12px; font-weight:700; cursor:pointer;
+    white-space:nowrap; transition: background 0.15s ease, color 0.15s ease;
+  }
+  .icono-grid-tab.activo{ background: var(--azul); color:#fff; }
+  .icono-grid{
+    display:grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap:6px;
+    max-height:190px; overflow-y:auto; padding:10px; background: var(--gris-claro);
+    border-radius:12px;
+  }
+  .icono-opcion{
+    aspect-ratio:1; border:2px solid transparent; border-radius:9px; background:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:19px; cursor:pointer;
+    transition: transform 0.12s ease, border-color 0.12s ease;
+  }
+  .icono-opcion:hover{ transform: translateY(-2px); border-color:#c7d2e0; }
+  .icono-opcion.seleccionado{ border-color: var(--amarillo); background:#fff8e1; }
+  .icono-grid-vacio{
+    grid-column: 1/-1; text-align:center; color: var(--gris); font-size:12.5px; padding:14px 0;
+  }
+
   @media (max-width: 560px){
     .topbar h1{ font-size:14px; }
     .topbar .diamante{ width:34px; height:34px; }
@@ -863,22 +896,14 @@
         <input type="text" id="catNombre" placeholder="Ej: Salud">
       </div>
       <div class="campo">
-        <label>Ícono (emoji de referencia)</label>
-        <select id="catIcono" class="campo-emoji">
-          <option value="🏥">🏥 Salud</option>
-          <option value="🎓">🎓 Educación</option>
-          <option value="🪪">🪪 Membresías</option>
-          <option value="⚽">⚽ Deportes</option>
-          <option value="🍽️">🍽️ Alimentos</option>
-          <option value="🏨">🏨 Hospedaje</option>
-          <option value="✈️">✈️ Viajes</option>
-          <option value="👓">👓 Ópticas</option>
-          <option value="💳">💳 Financiero</option>
-          <option value="🚗">🚗 Movilidad</option>
-          <option value="🛍️">🛍️ Compras</option>
-          <option value="🎬">🎬 Entretenimiento</option>
-          <option value="🏷️">🏷️ Otro</option>
-        </select>
+        <label>Ícono de la categoría</label>
+        <div class="icono-picker">
+          <div class="icono-picker-actual" id="catIconoPreview">🏥</div>
+          <input type="text" id="catIconoBuscar" placeholder="Buscar ícono… (ej: viajes, comida, belleza)" oninput="filtrarIconosCategoria()">
+        </div>
+        <div class="icono-grid-tabs" id="catIconoTabs"></div>
+        <div class="icono-grid" id="catIconoGrid"></div>
+        <input type="hidden" id="catIcono" value="🏥">
       </div>
       <div class="campo">
         <label>Descripción breve</label>
@@ -1478,6 +1503,109 @@ function renderListaCategoriasAdmin(){
   });
 }
 
+// =============================================
+// SELECTOR VISUAL DE ÍCONOS PARA CATEGORÍAS
+// =============================================
+const ICONOS_CATEGORIA = [
+  {e:'🏥', l:'Salud', g:'salud'}, {e:'💊', l:'Farmacia', g:'salud'}, {e:'🦷', l:'Dental', g:'salud'},
+  {e:'🧠', l:'Psicología', g:'salud'}, {e:'👓', l:'Ópticas', g:'salud'}, {e:'🩺', l:'Médico', g:'salud'},
+  {e:'💉', l:'Laboratorio', g:'salud'},
+  {e:'🎓', l:'Educación', g:'educacion'}, {e:'📚', l:'Cursos', g:'educacion'}, {e:'✏️', l:'Escolar', g:'educacion'},
+  {e:'🏫', l:'Instituciones', g:'educacion'}, {e:'🧑\u200d🏫', l:'Capacitación', g:'educacion'},
+  {e:'🪪', l:'Membresías', g:'membresias'}, {e:'🎫', l:'Suscripciones', g:'membresias'}, {e:'🎟️', l:'Clubes', g:'membresias'},
+  {e:'💳', l:'Financiero', g:'financiero'}, {e:'🏦', l:'Bancos', g:'financiero'}, {e:'💰', l:'Ahorro', g:'financiero'},
+  {e:'📈', l:'Inversión', g:'financiero'}, {e:'🧾', l:'Seguros', g:'financiero'},
+  {e:'⚽', l:'Deportes', g:'deportes'}, {e:'🏋️', l:'Gimnasio', g:'deportes'}, {e:'🚴', l:'Ciclismo', g:'deportes'},
+  {e:'🏊', l:'Natación', g:'deportes'}, {e:'🧘', l:'Bienestar', g:'deportes'}, {e:'🏀', l:'Basquetbol', g:'deportes'},
+  {e:'⚾', l:'Béisbol', g:'deportes'},
+  {e:'🍽️', l:'Alimentos', g:'alimentos'}, {e:'🍕', l:'Comida rápida', g:'alimentos'}, {e:'☕', l:'Café', g:'alimentos'},
+  {e:'🍰', l:'Postres', g:'alimentos'}, {e:'🛒', l:'Supermercado', g:'alimentos'}, {e:'🍔', l:'Restaurantes', g:'alimentos'},
+  {e:'🍺', l:'Bares', g:'alimentos'},
+  {e:'🏨', l:'Hospedaje', g:'viajes'}, {e:'✈️', l:'Viajes', g:'viajes'}, {e:'🚗', l:'Movilidad', g:'viajes'},
+  {e:'🚕', l:'Transporte', g:'viajes'}, {e:'⛽', l:'Combustible', g:'viajes'}, {e:'🧳', l:'Equipaje', g:'viajes'},
+  {e:'🚌', l:'Autobús', g:'viajes'}, {e:'🚙', l:'Renta de autos', g:'viajes'},
+  {e:'🛍️', l:'Compras', g:'compras'}, {e:'👗', l:'Moda', g:'compras'}, {e:'👟', l:'Calzado', g:'compras'},
+  {e:'💄', l:'Belleza', g:'compras'}, {e:'💇', l:'Estética', g:'compras'}, {e:'👜', l:'Accesorios', g:'compras'},
+  {e:'💍', l:'Joyería', g:'compras'},
+  {e:'🎬', l:'Entretenimiento', g:'entretenimiento'}, {e:'🎮', l:'Videojuegos', g:'entretenimiento'},
+  {e:'🎵', l:'Música', g:'entretenimiento'}, {e:'🎉', l:'Eventos', g:'entretenimiento'}, {e:'🎭', l:'Espectáculos', g:'entretenimiento'},
+  {e:'🎡', l:'Parques', g:'entretenimiento'},
+  {e:'💻', l:'Tecnología', g:'tecnologia'}, {e:'📱', l:'Celulares', g:'tecnologia'}, {e:'🖥️', l:'Cómputo', g:'tecnologia'},
+  {e:'🎧', l:'Audio', g:'tecnologia'}, {e:'📷', l:'Fotografía', g:'tecnologia'}, {e:'📸', l:'Foto y video', g:'tecnologia'},
+  {e:'🎥', l:'Video', g:'tecnologia'}, {e:'🖨️', l:'Impresión', g:'tecnologia'},
+  {e:'🏠', l:'Hogar', g:'hogar'}, {e:'🛋️', l:'Muebles', g:'hogar'}, {e:'🔧', l:'Ferretería', g:'hogar'},
+  {e:'🧹', l:'Limpieza', g:'hogar'}, {e:'🪴', l:'Jardinería', g:'hogar'},
+  {e:'🐾', l:'Mascotas', g:'mascotas'}, {e:'🐶', l:'Veterinaria', g:'mascotas'},
+  {e:'👶', l:'Bebés y niños', g:'ninos'}, {e:'🧸', l:'Juguetes', g:'ninos'},
+  {e:'🏷️', l:'Otro', g:'otro'}
+];
+const GRUPOS_ICONOS = [
+  {g:'todos', l:'Todos'}, {g:'salud', l:'Salud'}, {g:'educacion', l:'Educación'},
+  {g:'financiero', l:'Financiero'}, {g:'deportes', l:'Deportes'}, {g:'alimentos', l:'Alimentos'},
+  {g:'viajes', l:'Viajes'}, {g:'compras', l:'Compras'}, {g:'entretenimiento', l:'Entretenimiento'},
+  {g:'tecnologia', l:'Tecnología'}, {g:'hogar', l:'Hogar'}, {g:'mascotas', l:'Mascotas'},
+  {g:'ninos', l:'Niños'}, {g:'membresias', l:'Membresías'}, {g:'otro', l:'Otro'}
+];
+let grupoIconoActivo = 'todos';
+
+function renderTabsIconoCategoria(){
+  const cont = document.getElementById('catIconoTabs');
+  cont.innerHTML = GRUPOS_ICONOS.map(gr=>`
+    <button type="button" class="icono-grid-tab ${gr.g===grupoIconoActivo?'activo':''}" onclick="cambiarGrupoIconoCategoria('${gr.g}')">${escapeHtml(gr.l)}</button>
+  `).join('');
+}
+
+function cambiarGrupoIconoCategoria(g){
+  grupoIconoActivo = g;
+  document.getElementById('catIconoBuscar').value = '';
+  renderTabsIconoCategoria();
+  renderGridIconoCategoria('');
+}
+
+function renderGridIconoCategoria(filtro){
+  const cont = document.getElementById('catIconoGrid');
+  const actual = document.getElementById('catIcono').value;
+  const texto = (filtro||'').trim().toLowerCase();
+  let lista = ICONOS_CATEGORIA;
+  if(grupoIconoActivo !== 'todos'){
+    lista = lista.filter(i=>i.g===grupoIconoActivo);
+  }
+  if(texto){
+    lista = lista.filter(i=> i.l.toLowerCase().includes(texto) || i.e===filtro);
+  }
+  if(lista.length===0){
+    cont.innerHTML = '<div class="icono-grid-vacio">Sin resultados, prueba otra palabra</div>';
+    return;
+  }
+  cont.innerHTML = lista.map(i=>`
+    <button type="button" class="icono-opcion ${i.e===actual?'seleccionado':''}" title="${escapeHtml(i.l)}" onclick="seleccionarIconoCategoria('${i.e}')">${i.e}</button>
+  `).join('');
+}
+
+function filtrarIconosCategoria(){
+  const texto = document.getElementById('catIconoBuscar').value;
+  if(texto.trim() && grupoIconoActivo!=='todos'){
+    grupoIconoActivo = 'todos';
+    renderTabsIconoCategoria();
+  }
+  renderGridIconoCategoria(texto);
+}
+
+function seleccionarIconoCategoria(emoji){
+  document.getElementById('catIcono').value = emoji;
+  document.getElementById('catIconoPreview').textContent = emoji;
+  renderGridIconoCategoria(document.getElementById('catIconoBuscar').value);
+}
+
+function inicializarSelectorIconoCategoria(iconoActual){
+  grupoIconoActivo = 'todos';
+  document.getElementById('catIcono').value = iconoActual;
+  document.getElementById('catIconoPreview').textContent = iconoActual;
+  document.getElementById('catIconoBuscar').value = '';
+  renderTabsIconoCategoria();
+  renderGridIconoCategoria('');
+}
+
 function abrirFormCategoria(catId){
   const esEdicion = !!catId;
   document.getElementById('formCategoriaTitulo').textContent = esEdicion ? 'Editar categoría' : 'Nueva categoría';
@@ -1491,7 +1619,7 @@ function abrirFormCategoria(catId){
   if(esEdicion){
     const cat = categorias.find(c=>c.id===catId);
     document.getElementById('catNombre').value = cat.nombre;
-    document.getElementById('catIcono').value = cat.icono || '🏥';
+    inicializarSelectorIconoCategoria(cat.icono || '🏥');
     document.getElementById('catDescripcion').value = cat.descripcion || '';
     if(cat.imagen){
       preview.src = cat.imagen;
@@ -1500,7 +1628,7 @@ function abrirFormCategoria(catId){
     }
   }else{
     document.getElementById('catNombre').value = '';
-    document.getElementById('catIcono').value = '🏥';
+    inicializarSelectorIconoCategoria('🏥');
     document.getElementById('catDescripcion').value = '';
   }
   document.getElementById('formCategoriaOverlay').classList.add('activo');
