@@ -268,6 +268,27 @@
   .cat-hero h2{ font-size: clamp(24px,3vw,34px); margin:0 0 8px; }
   .cat-hero p{ margin:0; opacity:0.85; font-size:14.5px; max-width:600px; }
 
+  .filtros-convenios{
+    display:flex; gap:10px; flex-wrap:wrap;
+    margin: 24px 0 4px;
+  }
+  .filtros-convenios input[type=text]{
+    flex:1; min-width:220px; padding:12px 16px; border:1.5px solid #dde3ec; border-radius:999px;
+    font-size:14px; font-family:inherit;
+  }
+  .filtros-convenios input[type=text]:focus{ outline:none; border-color: var(--azul); }
+  .filtros-convenios select{
+    padding:12px 16px; border:1.5px solid #dde3ec; border-radius:999px;
+    font-size:14px; font-family:inherit; background:#fff; color: var(--carbon); flex-shrink:0;
+  }
+  .filtros-convenios select:focus{ outline:none; border-color: var(--azul); }
+  .convenio-card .chip-info{
+    display:inline-flex; align-items:center; gap:4px;
+    font-size:12px; font-weight:700; color: var(--azul-osc);
+    background: var(--gris-claro); border-radius:999px; padding:3px 9px;
+    margin: 0 6px 8px 0;
+  }
+
   .grid-convenios{
     display:grid;
     grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
@@ -399,11 +420,13 @@
 
   .campo{ margin-bottom:16px; }
   .campo label{ display:block; font-size:12.5px; font-weight:700; color: var(--azul-mas-osc); margin-bottom:6px; }
-  .campo input[type=text], .campo textarea, .campo select{
+  .campo input[type=text], .campo input[type=email], .campo input[type=number], .campo textarea, .campo select{
     width:100%; padding:10px 13px; border:1.5px solid #dde3ec; border-radius:10px;
     font-size:14px; font-family:inherit; color: var(--carbon);
   }
   .campo input:focus, .campo textarea:focus, .campo select:focus{ outline:none; border-color: var(--azul); }
+  .campo-fila{ display:flex; gap:12px; }
+  .campo-fila .campo{ flex:1; min-width:0; }
   .campo textarea{ resize:vertical; min-height:64px; }
   .subir-imagen-zona{
     border:2px dashed #c7d2e0; border-radius:12px; padding:18px; text-align:center;
@@ -835,6 +858,14 @@
       <h2 id="catHeroTitulo">Categoría</h2>
       <p id="catHeroDesc">Descripción de la categoría</p>
     </div>
+    <div class="filtros-convenios" id="filtrosConvenios">
+      <input type="text" id="buscarLugarConvenio" placeholder="🔍 Buscar por ciudad o lugar..." oninput="renderConvenios(categoriaActivaId)">
+      <select id="ordenPrecioConvenio" onchange="renderConvenios(categoriaActivaId)">
+        <option value="">Ordenar por precio</option>
+        <option value="asc">Precio: menor a mayor</option>
+        <option value="desc">Precio: mayor a menor</option>
+      </select>
+    </div>
     <div class="grid-convenios" id="gridConvenios"></div>
     <button class="volver-btn" onclick="irAPortada()">← Volver a todas las categorías</button>
   </div>
@@ -848,6 +879,7 @@
     <div class="contenido-modal">
       <span class="etiqueta-cat" id="modalCat">Categoría</span>
       <h3 id="modalEmpresa">Empresa</h3>
+      <div id="modalChips" style="margin:-4px 0 10px;"></div>
       <div class="bloque">
         <h4>¿De qué trata?</h4>
         <p id="modalDescripcion">—</p>
@@ -1072,6 +1104,16 @@
       <div class="campo">
         <label>Resumen corto (se ve en la tarjeta)</label>
         <input type="text" id="convResumen" placeholder="Ej: Descuento del 20% en membresía anual">
+      </div>
+      <div class="campo-fila">
+        <div class="campo">
+          <label>Ciudad / lugar (opcional)</label>
+          <input type="text" id="convCiudad" placeholder="Ej: Coatzacoalcos">
+        </div>
+        <div class="campo">
+          <label>Precio desde (opcional)</label>
+          <input type="number" id="convPrecio" placeholder="Ej: 850" min="0" step="0.01">
+        </div>
       </div>
       <div class="campo">
         <label>¿De qué trata el convenio?</label>
@@ -1515,6 +1557,9 @@ function abrirCategoria(catId){
   document.getElementById('catHeroTitulo').textContent = cat.nombre;
   document.getElementById('catHeroDesc').textContent = cat.descripcion || '';
 
+  document.getElementById('buscarLugarConvenio').value = '';
+  document.getElementById('ordenPrecioConvenio').value = '';
+
   renderConvenios(catId);
   window.scrollTo({top:0, behavior:'smooth'});
 }
@@ -1526,13 +1571,43 @@ function renderConvenios(catId){
   // sesión de admin activa) también ves los borradores, marcados aparte,
   // para poder revisar cómo va quedando antes de publicarlos.
   const todosDeLaCategoria = convenios.filter(c=>c.categoriaId===catId);
-  const lista = modoEdicion ? todosDeLaCategoria : todosDeLaCategoria.filter(c=>c.publicado !== false);
+  let lista = modoEdicion ? todosDeLaCategoria : todosDeLaCategoria.filter(c=>c.publicado !== false);
+  const totalSinFiltrar = lista.length;
 
-  if(lista.length===0){
+  // Búsqueda por ciudad/lugar (o nombre de empresa, por si acaso)
+  const busqueda = (document.getElementById('buscarLugarConvenio')?.value || '').trim().toLowerCase();
+  if(busqueda){
+    lista = lista.filter(c=>
+      (c.ciudad||'').toLowerCase().includes(busqueda) ||
+      (c.empresa||'').toLowerCase().includes(busqueda)
+    );
+  }
+
+  // Orden por precio (los que no tienen precio quedan al final)
+  const orden = document.getElementById('ordenPrecioConvenio')?.value || '';
+  if(orden){
+    const tienePrecio = c => c.precio!==undefined && c.precio!==null && c.precio!=='' && !isNaN(Number(c.precio));
+    const conPrecio = lista.filter(tienePrecio);
+    const sinPrecio = lista.filter(c=>!tienePrecio(c));
+    conPrecio.sort((a,b)=> orden==='asc' ? Number(a.precio)-Number(b.precio) : Number(b.precio)-Number(a.precio));
+    lista = [...conPrecio, ...sinPrecio];
+  }
+
+  if(totalSinFiltrar===0){
     grid.innerHTML = `<div style="grid-column:1/-1;">
       <div class="estado-vacio">
         <span class="emoji">📭</span>
         Todavía no hay convenios cargados en esta categoría.<br>Usa "Administrar" para agregar el primero.
+      </div>
+    </div>`;
+    return;
+  }
+
+  if(lista.length===0){
+    grid.innerHTML = `<div style="grid-column:1/-1;">
+      <div class="estado-vacio">
+        <span class="emoji">🔍</span>
+        No encontramos convenios que coincidan con tu búsqueda.
       </div>
     </div>`;
     return;
@@ -1543,6 +1618,7 @@ function renderConvenios(catId){
     const card = document.createElement('div');
     card.className = 'convenio-card' + (esBorrador ? ' es-borrador' : '');
     card.onclick = ()=> abrirDetalleConvenio(conv.id);
+    const tienePrecioValido = conv.precio!==undefined && conv.precio!==null && conv.precio!=='' && !isNaN(Number(conv.precio));
     card.innerHTML = `
       <div class="img-wrap">
         ${esBorrador ? `<span class="badge-borrador">🔒 Solo tú lo ves</span>` : ''}
@@ -1551,6 +1627,10 @@ function renderConvenios(catId){
       <div class="cuerpo">
         <p class="empresa">${escapeHtml(conv.empresa)}</p>
         <p class="resumen">${escapeHtml(conv.resumen || '')}</p>
+        <div>
+          ${conv.ciudad ? `<span class="chip-info">📍 ${escapeHtml(conv.ciudad)}</span>` : ''}
+          ${tienePrecioValido ? `<span class="chip-info">💲 desde $${escapeHtml(String(conv.precio))}</span>` : ''}
+        </div>
         <span class="ver-mas">Ver detalles →</span>
       </div>
     `;
@@ -1572,6 +1652,13 @@ function abrirDetalleConvenio(convId){
 
   document.getElementById('modalCat').textContent = (cat ? cat.icono+' '+cat.nombre : 'Convenio');
   document.getElementById('modalEmpresa').textContent = conv.empresa;
+
+  const tienePrecioValido = conv.precio!==undefined && conv.precio!==null && conv.precio!=='' && !isNaN(Number(conv.precio));
+  document.getElementById('modalChips').innerHTML = `
+    ${conv.ciudad ? `<span class="chip-info">📍 ${escapeHtml(conv.ciudad)}</span>` : ''}
+    ${tienePrecioValido ? `<span class="chip-info">💲 desde $${escapeHtml(String(conv.precio))}</span>` : ''}
+  `;
+
   document.getElementById('modalDescripcion').textContent = conv.descripcion || 'Sin descripción disponible.';
   document.getElementById('modalBeneficio').textContent = conv.beneficio || 'Sin información de beneficio disponible.';
 
@@ -2058,6 +2145,8 @@ function abrirFormConvenio(convId){
     document.getElementById('convCategoria').value = conv.categoriaId;
     document.getElementById('convEmpresa').value = conv.empresa;
     document.getElementById('convResumen').value = conv.resumen || '';
+    document.getElementById('convCiudad').value = conv.ciudad || '';
+    document.getElementById('convPrecio').value = (conv.precio !== undefined && conv.precio !== null) ? conv.precio : '';
     document.getElementById('convDescripcion').value = conv.descripcion || '';
     document.getElementById('convBeneficio').value = conv.beneficio || '';
     // Convenios antiguos no tienen el campo "publicado": se tratan como ya visibles.
@@ -2073,6 +2162,8 @@ function abrirFormConvenio(convId){
     document.getElementById('convCategoria').value = filtro || (categorias[0]?categorias[0].id:'');
     document.getElementById('convEmpresa').value = '';
     document.getElementById('convResumen').value = '';
+    document.getElementById('convCiudad').value = '';
+    document.getElementById('convPrecio').value = '';
     document.getElementById('convDescripcion').value = '';
     document.getElementById('convBeneficio').value = '';
     // Convenio nuevo: por defecto entra como borrador, solo visible para ti.
@@ -2125,10 +2216,13 @@ async function guardarConvenio(){
   if(!empresa){ mostrarAviso('Escribe el nombre de la empresa'); return; }
   if(!categoriaId){ mostrarAviso('Selecciona una categoría'); return; }
 
+  const precioValor = document.getElementById('convPrecio').value.trim();
   const datos = {
     categoriaId,
     empresa,
     resumen: document.getElementById('convResumen').value.trim(),
+    ciudad: document.getElementById('convCiudad').value.trim(),
+    precio: precioValor === '' ? null : Number(precioValor),
     descripcion: document.getElementById('convDescripcion').value.trim(),
     beneficio: document.getElementById('convBeneficio').value.trim(),
     imagen: imagenTemporalConv,
