@@ -1177,7 +1177,7 @@
     <div class="admin-body">
       <input type="hidden" id="contactoEditId">
       <div class="campo">
-        <label>Nombre completo</label>
+        <label>Nombre completo (opcional)</label>
         <input type="text" id="contactoNombre" placeholder="Ej: Ana Torres">
       </div>
       <div class="campo">
@@ -1185,12 +1185,16 @@
         <input type="text" id="contactoCargo" placeholder="Ej: Recursos Humanos">
       </div>
       <div class="campo">
-        <label>Teléfono</label>
+        <label>Teléfono (opcional)</label>
         <input type="text" id="contactoTelefono" placeholder="Ej: 921 123 4567">
       </div>
       <div class="campo">
         <label>WhatsApp (opcional)</label>
         <input type="text" id="contactoWhatsapp" placeholder="Ej: 5219211234567 o un link wa.me">
+      </div>
+      <div class="campo">
+        <label>Correo (opcional)</label>
+        <input type="email" id="contactoCorreo" placeholder="Ej: beneficios@bama.com">
       </div>
       <div class="campo" style="display:flex; align-items:center; gap:10px; background:#f7f9fc; padding:12px 14px; border-radius:12px;">
         <input type="checkbox" id="contactoPublicado" style="width:18px; height:18px; margin:0; flex-shrink:0;">
@@ -2665,11 +2669,12 @@ function renderContactos(){
     card.innerHTML = `
       ${esBorrador ? `<span class="badge-borrador">🔒 Solo tú lo ves</span>` : ''}
       <div class="avatar">${escapeHtml(iniciales)}</div>
-      <h4>${escapeHtml(cont.nombre)}</h4>
+      <h4>${escapeHtml(cont.nombre || 'Contacto')}</h4>
       ${cont.cargo ? `<p class="cargo">${escapeHtml(cont.cargo)}</p>` : `<p class="cargo">&nbsp;</p>`}
       <div class="botones-contacto">
         ${cont.telefono ? `<a class="red-boton" href="tel:${escapeHtml(cont.telefono.replace(/\s+/g,''))}"><span class="emoji">📞</span> ${escapeHtml(cont.telefono)}</a>` : ''}
         ${linkWa ? `<a class="red-boton secundario" href="${escapeHtml(linkWa)}" target="_blank" rel="noopener noreferrer"><span class="emoji">💬</span> WhatsApp</a>` : ''}
+        ${cont.correo ? `<a class="red-boton secundario" href="mailto:${escapeHtml(cont.correo)}"><span class="emoji">✉️</span> Correo</a>` : ''}
       </div>
     `;
     grid.appendChild(card);
@@ -2691,7 +2696,7 @@ function renderListaContactosAdmin(){
     fila.innerHTML = `
       <div class="miniatura-icono">📇</div>
       <div class="texto">
-        <strong>${escapeHtml(c.nombre)}</strong>
+        <strong>${escapeHtml(c.nombre || 'Sin nombre')}</strong>
         <span>${escapeHtml(c.cargo || c.telefono || '')}</span>
       </div>
       <span class="estado-pill ${estaPublicado?'publicado':'borrador'}">${estaPublicado?'● Visible para todos':'🔒 Solo tú'}</span>
@@ -2716,12 +2721,14 @@ function abrirFormContacto(contactoId){
     document.getElementById('contactoCargo').value = c.cargo || '';
     document.getElementById('contactoTelefono').value = c.telefono || '';
     document.getElementById('contactoWhatsapp').value = c.whatsapp || '';
+    document.getElementById('contactoCorreo').value = c.correo || '';
     document.getElementById('contactoPublicado').checked = (c.publicado !== false);
   }else{
     document.getElementById('contactoNombre').value = '';
     document.getElementById('contactoCargo').value = '';
     document.getElementById('contactoTelefono').value = '';
     document.getElementById('contactoWhatsapp').value = '';
+    document.getElementById('contactoCorreo').value = '';
     document.getElementById('contactoPublicado').checked = false;
   }
   document.getElementById('formContactoOverlay').classList.add('activo');
@@ -2734,16 +2741,22 @@ function cerrarFormContacto(){
 function guardarContacto(){
   const id = document.getElementById('contactoEditId').value;
   const nombre = document.getElementById('contactoNombre').value.trim();
+  const cargo = document.getElementById('contactoCargo').value.trim();
   const telefono = document.getElementById('contactoTelefono').value.trim();
+  const whatsapp = document.getElementById('contactoWhatsapp').value.trim();
+  const correo = document.getElementById('contactoCorreo').value.trim();
 
-  if(!nombre){ mostrarAviso('Escribe el nombre del contacto'); return; }
-  if(!telefono){ mostrarAviso('Escribe un teléfono de contacto'); return; }
+  if(!nombre && !cargo && !telefono && !whatsapp && !correo){
+    mostrarAviso('Completa al menos un dato del contacto');
+    return;
+  }
 
   const datos = {
     nombre,
-    cargo: document.getElementById('contactoCargo').value.trim(),
+    cargo,
     telefono,
-    whatsapp: document.getElementById('contactoWhatsapp').value.trim(),
+    whatsapp,
+    correo,
     publicado: document.getElementById('contactoPublicado').checked
   };
 
