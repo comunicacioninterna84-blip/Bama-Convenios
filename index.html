@@ -203,6 +203,40 @@
   .seccion-titulo h2{ font-size:26px; margin:0 0 8px; color: var(--azul-mas-osc); }
   .seccion-titulo p{ color: var(--gris); margin:0; font-size:14.5px; }
 
+  .seccion-contacto{ margin-top: 64px; }
+  .seccion-contacto .seccion-titulo{ margin: 0 0 28px; }
+  .grid-contactos{
+    display:grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 18px;
+  }
+  .contacto-card{
+    position:relative;
+    background:#fff; border-radius: var(--radio);
+    padding: 22px 20px;
+    box-shadow: var(--sombra);
+    border: 2px solid transparent;
+    transition: transform 0.2s ease;
+  }
+  .contacto-card:hover{ transform: translateY(-4px); }
+  .contacto-card.es-borrador{ border-color:#c99a00; border-style:dashed; }
+  .contacto-card .avatar{
+    width:52px; height:52px; border-radius:50%;
+    background: var(--azul); color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:20px; font-weight:800; margin-bottom:14px;
+  }
+  .contacto-card h4{ margin:0 0 2px; font-size:16.5px; color: var(--azul-mas-osc); }
+  .contacto-card .cargo{ margin:0 0 14px; font-size:13px; color: var(--gris); }
+  .contacto-card .botones-contacto{ display:flex; gap:8px; flex-wrap:wrap; }
+  .contacto-card .red-boton{ padding:9px 14px; font-size:13px; }
+  .contacto-card .red-boton.secundario{ background: var(--gris-claro); color: var(--azul-mas-osc); }
+  .contacto-card .red-boton.secundario:hover{ background:#e4e8ee; }
+  .estado-vacio-contacto{
+    text-align:center; color: var(--gris); font-size:14px; padding:30px;
+    background:#fff; border-radius: var(--radio); box-shadow: var(--sombra);
+  }
+
   .add-cat-card{
     border:3px dashed #c7d2e0; border-radius: var(--radio);
     aspect-ratio: 4/3;
@@ -756,6 +790,14 @@
 
   <div class="contenedor">
     <div class="grid-categorias" id="gridCategorias"></div>
+
+    <div class="seccion-contacto">
+      <div class="seccion-titulo">
+        <h2 id="tituloContacto">📞 Contacto</h2>
+        <p id="subtituloContacto">Comunícate con estas personas para solicitar tu tarjeta de beneficios.</p>
+      </div>
+      <div class="grid-contactos" id="gridContactos"></div>
+    </div>
   </div>
 </div>
 
@@ -867,6 +909,7 @@
         <button class="admin-tab" id="tabConvenios" onclick="cambiarTabAdmin('convenios')">Convenios</button>
         <button class="admin-tab" id="tabPromos" onclick="cambiarTabAdmin('promos')">Promos del Mes</button>
         <button class="admin-tab" id="tabAnuncio" onclick="cambiarTabAdmin('anuncio')">Anuncio</button>
+        <button class="admin-tab" id="tabContacto" onclick="cambiarTabAdmin('contacto')">Contacto</button>
         <button class="admin-tab" id="tabTextos" onclick="cambiarTabAdmin('textos')">Textos</button>
       </div>
 
@@ -915,6 +958,13 @@
         </div>
       </div>
 
+      <!-- TAB CONTACTO -->
+      <div id="panelContacto" style="display:none;">
+        <p style="font-size:13px;color:#6B7280;margin:0 0 16px;">Agrega a las personas con las que los colaboradores pueden comunicarse para solicitar su tarjeta de beneficios.</p>
+        <div id="listaContactosAdmin"></div>
+        <button class="btn-primario" style="margin-top:14px; width:100%;" onclick="abrirFormContacto()">+ Agregar contacto</button>
+      </div>
+
       <!-- TAB TEXTOS -->
       <div id="panelTextos" style="display:none;">
         <p style="font-size:13px;color:#6B7280;margin:0 0 16px;">Edita los textos que aparecen en la pantalla principal.</p>
@@ -933,6 +983,14 @@
         <div class="campo">
           <label>Subtítulo de "Promos del Mes"</label>
           <textarea id="textoSubtituloPromos" style="min-height:70px;" placeholder="Descuentos y promociones exclusivas para colaboradores Bama vigentes este mes."></textarea>
+        </div>
+        <div class="campo">
+          <label>Título de la sección "Contacto"</label>
+          <input type="text" id="textoTituloContacto" placeholder="📞 Contacto">
+        </div>
+        <div class="campo">
+          <label>Subtítulo de la sección "Contacto"</label>
+          <textarea id="textoSubtituloContacto" style="min-height:70px;" placeholder="Comunícate con estas personas para solicitar tu tarjeta de beneficios."></textarea>
         </div>
         <div class="fila-botones">
           <button class="btn-secundario" onclick="resetearTextos()">Restaurar original</button>
@@ -1109,6 +1167,46 @@
   </div>
 </div>
 
+<!-- FORM CONTACTO -->
+<div class="admin-overlay" id="formContactoOverlay">
+  <div class="admin-panel" style="max-width:480px;">
+    <div class="admin-header">
+      <h3 id="formContactoTitulo">Nuevo contacto</h3>
+      <button onclick="cerrarFormContacto()">✕</button>
+    </div>
+    <div class="admin-body">
+      <input type="hidden" id="contactoEditId">
+      <div class="campo">
+        <label>Nombre completo</label>
+        <input type="text" id="contactoNombre" placeholder="Ej: Ana Torres">
+      </div>
+      <div class="campo">
+        <label>Puesto / área (opcional)</label>
+        <input type="text" id="contactoCargo" placeholder="Ej: Recursos Humanos">
+      </div>
+      <div class="campo">
+        <label>Teléfono</label>
+        <input type="text" id="contactoTelefono" placeholder="Ej: 921 123 4567">
+      </div>
+      <div class="campo">
+        <label>WhatsApp (opcional)</label>
+        <input type="text" id="contactoWhatsapp" placeholder="Ej: 5219211234567 o un link wa.me">
+      </div>
+      <div class="campo" style="display:flex; align-items:center; gap:10px; background:#f7f9fc; padding:12px 14px; border-radius:12px;">
+        <input type="checkbox" id="contactoPublicado" style="width:18px; height:18px; margin:0; flex-shrink:0;">
+        <label for="contactoPublicado" style="margin:0; cursor:pointer;">
+          Visible para todos<br>
+          <span style="font-weight:400; font-size:12px; color:var(--gris);">Si lo dejas sin marcar, solo tú lo verás (modo borrador) hasta que lo publiques.</span>
+        </label>
+      </div>
+      <div class="fila-botones">
+        <button class="btn-secundario" onclick="cerrarFormContacto()">Cancelar</button>
+        <button class="btn-primario" onclick="guardarContacto()">Guardar contacto</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 /* =========================================================
    ESTADO Y PERSISTENCIA
@@ -1119,6 +1217,7 @@
 let categorias = [];
 let convenios = [];
 let promos = [];
+let contactos = [];
 let imagenTemporalCat = null;
 let imagenTemporalConv = null;
 let convRedesTemp = [];
@@ -1163,7 +1262,9 @@ const TEXTOS_DEFAULT = {
   eyebrow: 'Exclusivo colaboradores Bama',
   titulo: 'Beneficios que suman a tu vida',
   subtitulo: 'Explora los convenios que tenemos con empresas a nivel local y nacional, elige una categoría y descubre qué puedes obtener.',
-  subtituloPromos: 'Descuentos y promociones exclusivas para colaboradores Bama vigentes este mes.'
+  subtituloPromos: 'Descuentos y promociones exclusivas para colaboradores Bama vigentes este mes.',
+  tituloContacto: '📞 Contacto',
+  subtituloContacto: 'Comunícate con estas personas para solicitar tu tarjeta de beneficios.'
 };
 
 let textos = {...TEXTOS_DEFAULT};
@@ -1246,12 +1347,13 @@ async function cargarDatos(){
   document.getElementById('cargandoOverlay').style.display = 'flex';
   try{
     // Leer todo de Firebase en paralelo
-    const [rawCat, rawIdx, rawTex, rawPromos, rawAnuncio] = await Promise.all([
+    const [rawCat, rawIdx, rawTex, rawPromos, rawAnuncio, rawContactos] = await Promise.all([
       fbGet('categorias'),
       fbGet('conveniosIdx'),
       fbGet('textos'),
       fbGet('promos'),
-      fbGet(CLAVE_ANUNCIO)
+      fbGet(CLAVE_ANUNCIO),
+      fbGet('contactos')
     ]);
 
     // Categorías
@@ -1278,6 +1380,9 @@ async function cargarDatos(){
     // Promos del mes
     promos = rawPromos ? (Array.isArray(rawPromos) ? rawPromos : Object.values(rawPromos)) : [];
 
+    // Contactos para tarjeta de beneficios
+    contactos = rawContactos ? (Array.isArray(rawContactos) ? rawContactos : Object.values(rawContactos)) : [];
+
     // Anuncio popup
     if(rawAnuncio && rawAnuncio.imagen){
       mostrarPopupAnuncio(rawAnuncio.imagen);
@@ -1302,7 +1407,12 @@ async function cargarDatos(){
   document.getElementById('cargandoOverlay').style.display = 'none';
   aplicarTextos();
   renderPortada();
+  renderContactos();
   popularSelectsCategoria();
+}
+
+function guardarContactos(){
+  fbSet('contactos', contactos);
 }
 
 function guardarCategorias(){
@@ -1543,6 +1653,9 @@ function activarModoEdicion(){
   document.getElementById('btnCandado').textContent = '🔓';
   document.getElementById('btnCandado').classList.add('desbloqueado');
   document.getElementById('btnCandado').title = 'Modo edición activo (clic para volver a solo lectura)';
+  renderPortada();
+  renderContactos();
+  if(categoriaActivaId) renderConvenios(categoriaActivaId);
 }
 function desactivarModoEdicion(){
   modoEdicion = false;
@@ -1551,6 +1664,9 @@ function desactivarModoEdicion(){
   document.getElementById('btnCandado').classList.remove('desbloqueado');
   document.getElementById('btnCandado').title = 'Acceso de edición';
   cerrarAdmin();
+  renderPortada();
+  renderContactos();
+  if(categoriaActivaId) renderConvenios(categoriaActivaId);
 }
 
 // Firebase Auth mantiene la sesión de forma segura (token cifrado, no un
@@ -1585,25 +1701,31 @@ function cambiarTabAdmin(tab){
   const esConv = tab==='convenios';
   const esPro = tab==='promos';
   const esAnuncio = tab==='anuncio';
+  const esContacto = tab==='contacto';
   const esTxt = tab==='textos';
   document.getElementById('tabCategorias').classList.toggle('activo', esCat);
   document.getElementById('tabConvenios').classList.toggle('activo', esConv);
   document.getElementById('tabPromos').classList.toggle('activo', esPro);
   document.getElementById('tabAnuncio').classList.toggle('activo', esAnuncio);
+  document.getElementById('tabContacto').classList.toggle('activo', esContacto);
   document.getElementById('tabTextos').classList.toggle('activo', esTxt);
   document.getElementById('panelCategorias').style.display = esCat ? 'block':'none';
   document.getElementById('panelConvenios').style.display = esConv ? 'block':'none';
   document.getElementById('panelPromos').style.display = esPro ? 'block':'none';
   document.getElementById('panelAnuncio').style.display = esAnuncio ? 'block':'none';
+  document.getElementById('panelContacto').style.display = esContacto ? 'block':'none';
   document.getElementById('panelTextos').style.display = esTxt ? 'block':'none';
   if(esTxt){
     document.getElementById('textoEyebrow').value = textos.eyebrow || TEXTOS_DEFAULT.eyebrow;
     document.getElementById('textoTitulo').value = textos.titulo || TEXTOS_DEFAULT.titulo;
     document.getElementById('textoSubtitulo').value = textos.subtitulo || TEXTOS_DEFAULT.subtitulo;
     document.getElementById('textoSubtituloPromos').value = textos.subtituloPromos || TEXTOS_DEFAULT.subtituloPromos;
+    document.getElementById('textoTituloContacto').value = textos.tituloContacto || TEXTOS_DEFAULT.tituloContacto;
+    document.getElementById('textoSubtituloContacto').value = textos.subtituloContacto || TEXTOS_DEFAULT.subtituloContacto;
   }
   if(esPro) renderListaPromosAdmin();
   if(esAnuncio) cargarPanelAnuncioAdmin();
+  if(esContacto) renderListaContactosAdmin();
 }
 
 function popularSelectsCategoria(){
@@ -2072,6 +2194,8 @@ function aplicarTextos(){
   document.getElementById('heroTitulo').textContent = textos.titulo || TEXTOS_DEFAULT.titulo;
   document.getElementById('heroSubtitulo').textContent = textos.subtitulo || TEXTOS_DEFAULT.subtitulo;
   document.getElementById('promoGaleriaSubtitulo').textContent = textos.subtituloPromos || TEXTOS_DEFAULT.subtituloPromos;
+  document.getElementById('tituloContacto').textContent = textos.tituloContacto || TEXTOS_DEFAULT.tituloContacto;
+  document.getElementById('subtituloContacto').textContent = textos.subtituloContacto || TEXTOS_DEFAULT.subtituloContacto;
 }
 
 function guardarTextos(){
@@ -2079,6 +2203,8 @@ function guardarTextos(){
   textos.titulo = document.getElementById('textoTitulo').value.trim() || TEXTOS_DEFAULT.titulo;
   textos.subtitulo = document.getElementById('textoSubtitulo').value.trim() || TEXTOS_DEFAULT.subtitulo;
   textos.subtituloPromos = document.getElementById('textoSubtituloPromos').value.trim() || TEXTOS_DEFAULT.subtituloPromos;
+  textos.tituloContacto = document.getElementById('textoTituloContacto').value.trim() || TEXTOS_DEFAULT.tituloContacto;
+  textos.subtituloContacto = document.getElementById('textoSubtituloContacto').value.trim() || TEXTOS_DEFAULT.subtituloContacto;
   fbSet('textos', textos);
   lsSet(CLAVE_TEXTOS, JSON.stringify(textos));
   aplicarTextos();
@@ -2104,7 +2230,8 @@ function exportarDatos(){
     fecha: new Date().toISOString(),
     categorias,
     convenios,
-    textos
+    textos,
+    contactos
   };
   const blob = new Blob([JSON.stringify(respaldo, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
@@ -2168,6 +2295,7 @@ Esto reemplazará todos los datos actuales.`)){
       categorias = datos.categorias;
       convenios = datos.convenios;
       textos = datos.textos || {...TEXTOS_DEFAULT};
+      contactos = Array.isArray(datos.contactos) ? datos.contactos : [];
       // Guardar todo en Firebase
       await fbSet('categorias', categorias);
       const convObj = {};
@@ -2178,6 +2306,7 @@ Esto reemplazará todos los datos actuales.`)){
       await fbSet('convenios', convObj);
       await fbSet('conveniosIdx', convenios.map(c=>c.id));
       await fbSet('textos', textos);
+      await fbSet('contactos', contactos);
       lsSet(CLAVE_CATEGORIAS, JSON.stringify(categorias));
       lsSet(CLAVE_CONVENIOS_INDICE, JSON.stringify(convenios.map(c=>c.id)));
       lsSet(CLAVE_TEXTOS, JSON.stringify(textos));
@@ -2186,6 +2315,7 @@ Esto reemplazará todos los datos actuales.`)){
       renderListaCategoriasAdmin();
       renderListaConveniosAdmin();
       renderPortada();
+      renderContactos();
       mostrarAviso(`✓ Importados: ${totalCat} categorías y ${totalConv} convenios`);
     }catch(err){
       console.error('Error guardando datos importados:', err);
@@ -2324,7 +2454,7 @@ function escapeHtml(texto){
 }
 
 // Cerrar overlays al hacer click fuera del panel
-['adminOverlay','formCategoriaOverlay','formConvenioOverlay','claveOverlay','formPromoOverlay'].forEach(id=>{
+['adminOverlay','formCategoriaOverlay','formConvenioOverlay','claveOverlay','formPromoOverlay','formContactoOverlay'].forEach(id=>{
   document.getElementById(id).addEventListener('click', function(e){
     if(e.target.id===id) this.classList.remove('activo');
   });
@@ -2498,6 +2628,157 @@ function eliminarPromo(id){
   renderListaPromosAdmin();
   renderPortada();
   mostrarAviso('Promo eliminada');
+}
+
+// =============================================
+// CONTACTO PARA TARJETA DE BENEFICIOS
+// =============================================
+
+function generarLinkWhatsapp(valor){
+  valor = (valor || '').trim();
+  if(!valor) return '';
+  if(/^https?:\/\//i.test(valor)) return valor;
+  const soloDigitos = valor.replace(/[^\d]/g, '');
+  if(!soloDigitos) return '';
+  return 'https://wa.me/' + soloDigitos;
+}
+
+/* ---- Vista pública ---- */
+function renderContactos(){
+  const grid = document.getElementById('gridContactos');
+  if(!grid) return;
+  grid.innerHTML = '';
+
+  const lista = modoEdicion ? contactos : contactos.filter(c=>c.publicado !== false);
+
+  if(lista.length===0){
+    grid.innerHTML = `<div class="estado-vacio-contacto">Todavía no hay contactos cargados.</div>`;
+    return;
+  }
+
+  lista.forEach(cont=>{
+    const esBorrador = modoEdicion && cont.publicado === false;
+    const iniciales = (cont.nombre||'?').trim().split(/\s+/).slice(0,2).map(p=>p[0]).join('').toUpperCase();
+    const linkWa = generarLinkWhatsapp(cont.whatsapp);
+    const card = document.createElement('div');
+    card.className = 'contacto-card' + (esBorrador ? ' es-borrador' : '');
+    card.innerHTML = `
+      ${esBorrador ? `<span class="badge-borrador">🔒 Solo tú lo ves</span>` : ''}
+      <div class="avatar">${escapeHtml(iniciales)}</div>
+      <h4>${escapeHtml(cont.nombre)}</h4>
+      ${cont.cargo ? `<p class="cargo">${escapeHtml(cont.cargo)}</p>` : `<p class="cargo">&nbsp;</p>`}
+      <div class="botones-contacto">
+        ${cont.telefono ? `<a class="red-boton" href="tel:${escapeHtml(cont.telefono.replace(/\s+/g,''))}"><span class="emoji">📞</span> ${escapeHtml(cont.telefono)}</a>` : ''}
+        ${linkWa ? `<a class="red-boton secundario" href="${escapeHtml(linkWa)}" target="_blank" rel="noopener noreferrer"><span class="emoji">💬</span> WhatsApp</a>` : ''}
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+/* ---- Panel admin ---- */
+function renderListaContactosAdmin(){
+  const cont = document.getElementById('listaContactosAdmin');
+  cont.innerHTML = '';
+  if(contactos.length===0){
+    cont.innerHTML = `<div class="estado-vacio"><span class="emoji">📇</span>No hay contactos todavía.</div>`;
+    return;
+  }
+  contactos.forEach(c=>{
+    const estaPublicado = c.publicado !== false;
+    const fila = document.createElement('div');
+    fila.className = 'lista-admin-item';
+    fila.innerHTML = `
+      <div class="miniatura-icono">📇</div>
+      <div class="texto">
+        <strong>${escapeHtml(c.nombre)}</strong>
+        <span>${escapeHtml(c.cargo || c.telefono || '')}</span>
+      </div>
+      <span class="estado-pill ${estaPublicado?'publicado':'borrador'}">${estaPublicado?'● Visible para todos':'🔒 Solo tú'}</span>
+      <div class="acciones">
+        <button class="icon-btn" title="${estaPublicado?'Ocultar (volver a borrador)':'Publicar (hacerlo visible para todos)'}" onclick="alternarPublicacionContacto('${c.id}')">${estaPublicado?'🙈':'📢'}</button>
+        <button class="icon-btn" title="Editar" onclick="abrirFormContacto('${c.id}')">✏️</button>
+        <button class="icon-btn" title="Eliminar" onclick="eliminarContacto('${c.id}')">🗑️</button>
+      </div>
+    `;
+    cont.appendChild(fila);
+  });
+}
+
+function abrirFormContacto(contactoId){
+  const esEdicion = !!contactoId;
+  document.getElementById('formContactoTitulo').textContent = esEdicion ? 'Editar contacto' : 'Nuevo contacto';
+  document.getElementById('contactoEditId').value = contactoId || '';
+
+  if(esEdicion){
+    const c = contactos.find(x=>x.id===contactoId);
+    document.getElementById('contactoNombre').value = c.nombre || '';
+    document.getElementById('contactoCargo').value = c.cargo || '';
+    document.getElementById('contactoTelefono').value = c.telefono || '';
+    document.getElementById('contactoWhatsapp').value = c.whatsapp || '';
+    document.getElementById('contactoPublicado').checked = (c.publicado !== false);
+  }else{
+    document.getElementById('contactoNombre').value = '';
+    document.getElementById('contactoCargo').value = '';
+    document.getElementById('contactoTelefono').value = '';
+    document.getElementById('contactoWhatsapp').value = '';
+    document.getElementById('contactoPublicado').checked = false;
+  }
+  document.getElementById('formContactoOverlay').classList.add('activo');
+}
+
+function cerrarFormContacto(){
+  document.getElementById('formContactoOverlay').classList.remove('activo');
+}
+
+function guardarContacto(){
+  const id = document.getElementById('contactoEditId').value;
+  const nombre = document.getElementById('contactoNombre').value.trim();
+  const telefono = document.getElementById('contactoTelefono').value.trim();
+
+  if(!nombre){ mostrarAviso('Escribe el nombre del contacto'); return; }
+  if(!telefono){ mostrarAviso('Escribe un teléfono de contacto'); return; }
+
+  const datos = {
+    nombre,
+    cargo: document.getElementById('contactoCargo').value.trim(),
+    telefono,
+    whatsapp: document.getElementById('contactoWhatsapp').value.trim(),
+    publicado: document.getElementById('contactoPublicado').checked
+  };
+
+  if(id){
+    const idx = contactos.findIndex(x=>x.id===id);
+    if(idx>=0) contactos[idx] = {...contactos[idx], ...datos};
+    else contactos.push({id, ...datos});
+  }else{
+    contactos.push({id: generarId('contacto'), ...datos});
+  }
+
+  guardarContactos();
+  renderListaContactosAdmin();
+  renderContactos();
+  cerrarFormContacto();
+  mostrarAviso('Contacto guardado ✓');
+}
+
+function eliminarContacto(id){
+  if(!confirm('¿Eliminar este contacto?')) return;
+  contactos = contactos.filter(c=>c.id!==id);
+  guardarContactos();
+  renderListaContactosAdmin();
+  renderContactos();
+  mostrarAviso('Contacto eliminado');
+}
+
+function alternarPublicacionContacto(id){
+  const idx = contactos.findIndex(c=>c.id===id);
+  if(idx<0) return;
+  contactos[idx] = {...contactos[idx], publicado: contactos[idx].publicado===false};
+  guardarContactos();
+  renderListaContactosAdmin();
+  renderContactos();
+  mostrarAviso(contactos[idx].publicado ? 'Contacto publicado ✓ Ya lo ven todos' : 'Contacto oculto — solo tú lo ves');
 }
 
 // Previsualización para promos (alta calidad: ancho 1200px, calidad 0.88)
