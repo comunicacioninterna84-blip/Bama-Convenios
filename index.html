@@ -1560,6 +1560,12 @@ function abrirCategoria(catId){
   document.getElementById('buscarLugarConvenio').value = '';
   document.getElementById('ordenPrecioConvenio').value = '';
 
+  // El buscador por ciudad y el orden por precio solo tienen sentido en
+  // Hospedaje (es la única categoría con esos datos cargados). En las
+  // demás categorías se oculta la barra de filtros.
+  const esHospedaje = (cat.nombre || '').trim().toLowerCase() === 'hospedaje';
+  document.getElementById('filtrosConvenios').style.display = esHospedaje ? 'flex' : 'none';
+
   renderConvenios(catId);
   window.scrollTo({top:0, behavior:'smooth'});
 }
