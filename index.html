@@ -979,6 +979,7 @@
       <!-- TAB PROMOS DEL MES -->
       <div id="panelPromos" style="display:none;">
         <p style="font-size:13px;color:#6B7280;margin:0 0 16px;">Gestiona las promociones del mes. Las imágenes se guardan en <strong>alta calidad</strong> para mayor nitidez.</p>
+        <button class="btn-secundario" style="margin-bottom:14px; width:100%; background:#FFF7DA; border-color:#E8D48A;" onclick="limpiarDatosPesadosViejos()">🧹 Limpiar videos/archivos viejos (versión anterior)</button>
         <div id="listaPromosAdmin"></div>
         <button class="btn-primario" style="margin-top:14px; width:100%;" onclick="abrirFormPromo()">+ Agregar promo del mes</button>
       </div>
@@ -2773,6 +2774,22 @@ function escapeHtml(texto){
 
 function guardarPromos(){
   fbSet('promos', promos);
+}
+
+// Limpieza única: quita cualquier video/archivo que haya quedado guardado
+// en Promos desde una versión anterior de la página (cuando sí existía esa
+// opción). Aunque el código actual ya no los usa, seguían descargándose de
+// golpe cada vez que alguien abría la página, porque Firebase siempre
+// entrega el nodo completo, no solo los campos que el código lee.
+async function limpiarDatosPesadosViejos(){
+  if(!confirm('Esto va a limpiar videos/archivos viejos que hayan quedado guardados en Promos. No borra tus promos, solo el video/archivo. ¿Continuar?')) return;
+  mostrarAviso('Limpiando…');
+  promos = promos.map(p => ({ id: p.id, empresa: p.empresa, categoria: p.categoria, imagen: p.imagen || null }));
+  await fbSet('promos', promos);
+  await fbDel('trivia'); // nodo huérfano de la función de Trivia que ya se quitó
+  renderListaPromosAdmin();
+  renderPortada();
+  mostrarAviso('Listo, datos pesados eliminados ✓');
 }
 
 // --- Galería pública ---
