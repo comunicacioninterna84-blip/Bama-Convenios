@@ -798,6 +798,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 </head>
 <body>
 
@@ -1470,11 +1471,13 @@ function generarId(prefijo){
 const FB_CONFIG = {
   apiKey: "AIzaSyDB1Rodc4QLd83pt1pdN3phVF4pO8mmUcg",
   databaseURL: "https://convenios-bama-default-rtdb.firebaseio.com",
-  projectId: "convenios-bama"
+  projectId: "convenios-bama",
+  storageBucket: "convenios-bama.firebasestorage.app"
 };
 
 // Inicializar Firebase (usando CDN compat v9)
 let fbDB = null;
+let fbStorage = null;
 async function initFirebase(){
   if(fbDB) return fbDB;
   try{
@@ -1482,6 +1485,44 @@ async function initFirebase(){
     fbDB = firebase.database();
     return fbDB;
   }catch(e){ console.warn('Firebase init error:', e); return null; }
+}
+async function initFirebaseStorage(){
+  if(fbStorage) return fbStorage;
+  try{
+    if(!firebase.apps.length) firebase.initializeApp(FB_CONFIG);
+    fbStorage = firebase.storage();
+    return fbStorage;
+  }catch(e){ console.warn('Firebase Storage init error:', e); return null; }
+}
+
+// Convierte un dataURL (imagen/video ya leído localmente, en base64) en un
+// archivo real y lo sube a Firebase Storage; devuelve el link público de
+// descarga. Esto es lo que hace que la página cargue rápido: en vez de
+// guardar el archivo completo dentro de la base de datos, solo se guarda
+// este link (unos cuantos caracteres) y el archivo se sirve directo desde
+// Storage, como cualquier imagen normal de internet.
+async function subirComoStorage(dataUrl, carpeta){
+  if(!dataUrl) return null;
+  if(!dataUrl.startsWith('data:')) return dataUrl; // ya es un link (no se tocó al editar)
+  const storage = await initFirebaseStorage();
+  if(!storage) throw new Error('No se pudo conectar con el almacenamiento.');
+  const resp = await fetch(dataUrl);
+  const blob = await resp.blob();
+  const nombre = Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  const ref = storage.ref(carpeta + '/' + nombre);
+  await ref.put(blob);
+  return await ref.getDownloadURL();
+}
+
+// Borra un archivo de Storage a partir de su link (si el campo no es un
+// link de Storage —por ejemplo si quedó vacío— simplemente no hace nada).
+async function borrarDeStorage(url){
+  if(!url || !url.startsWith('http')) return;
+  try{
+    const storage = await initFirebaseStorage();
+    if(!storage) return;
+    await storage.refFromURL(url).delete();
+  }catch(e){ console.warn('No se pudo borrar de Storage (puede que ya no exista):', e); }
 }
 
 // Leer de Firebase
@@ -1538,6 +1579,13 @@ function idVisitanteLocal(){
   }
   return id;
 }
+// Una vez que este navegador inició sesión de administrador (aunque sea una
+// sola vez), lo marcamos como "dispositivo admin" de forma permanente, para
+// que ninguna visita futura desde aquí se cuente en las estadísticas —
+// incluso si navegas en modo lectura, sin haber iniciado sesión ese día.
+function esDispositivoAdmin(){
+  return lsGet('bama:esAdmin') === '1';
+}
 async function fbIncrementar(path){
   try{
     const db = await initFirebase();
@@ -1548,7 +1596,23 @@ async function fbIncrementar(path){
 // Registra una visita a la página (una vez por carga). No identifica a la
 // persona: solo guarda un id aleatorio de dispositivo (para poder contar
 // visitantes distintos) y la fecha, nunca nombre, correo ni IP.
+// Localidad aproximada del visitante, a partir de su IP. No usa el GPS del
+// navegador ni pide permiso: es una estimación aproximada basada en un
+// servicio externo (ipapi.co), solo para saber desde qué localidades nos ven.
+async function obtenerUbicacionVisitante(){
+  try{
+    const resp = await fetch('https://ipapi.co/json/');
+    if(!resp.ok) return null;
+    const data = await resp.json();
+    if(data && data.city){
+      return { ciudad: data.city + (data.region ? ', ' + data.region : '') };
+    }
+    return null;
+  }catch(e){ return null; }
+}
+
 async function registrarVisita(){
+  if(esDispositivoAdmin()) return; // tus propias visitas nunca se cuentan
   try{
     const idv = idVisitanteLocal();
     const dia = hoyISO();
@@ -1556,29 +1620,34 @@ async function registrarVisita(){
     await fbIncrementar('analytics/visitasPorDia/' + dia);
     await fbSet('analytics/visitantesUnicos/' + idv, true);
     await fbSet('analytics/ultimaVisita', Date.now());
+
+    const ubicacion = await obtenerUbicacionVisitante();
+    if(ubicacion && ubicacion.ciudad){
+      await fbIncrementar('analytics/ciudades/' + ubicacion.ciudad.replace(/[.#$/\[\]]/g, ''));
+    }
   }catch(e){ console.warn('registrarVisita error:', e); }
 }
 // Vista de una categoría. No se cuenta cuando tú navegas con tu sesión de
 // administrador activa, para que tus propias pruebas no distorsionen los
 // números reales de los colaboradores.
 async function trackCategoria(catId){
-  if(modoEdicion) return;
+  if(modoEdicion || esDispositivoAdmin()) return;
   await fbIncrementar('analytics/categorias/' + catId);
 }
 // Vista de detalle de un convenio.
 async function trackConvenio(convId){
-  if(modoEdicion) return;
+  if(modoEdicion || esDispositivoAdmin()) return;
   await fbIncrementar('analytics/convenios/' + convId);
 }
 // Interacciones generales (clics) dentro de la página, para poder calcular
 // "qué tan seguido interactúan" las personas por visita.
 async function trackInteraccion(){
-  if(modoEdicion) return;
+  if(modoEdicion || esDispositivoAdmin()) return;
   await fbIncrementar('analytics/interaccionesTotal');
   await fbIncrementar('analytics/interaccionesPorDia/' + hoyISO());
 }
 document.addEventListener('click', function(e){
-  if(modoEdicion) return;
+  if(modoEdicion || esDispositivoAdmin()) return;
   // Ignora clics dentro del panel de administrador / candado / modal de clave
   if(e.target.closest('#adminOverlay, #claveOverlay, #btnCandado, #btnAdministrar')) return;
   trackInteraccion();
@@ -1618,6 +1687,12 @@ async function renderEstadisticas(){
   const maxCat = Math.max(1, ...topCategorias.map(c=>c.vistas));
   const maxConv = Math.max(1, ...topConvenios.map(c=>c.vistas));
 
+  const ciudadViews = datos.ciudades || {};
+  const topCiudades = Object.entries(ciudadViews)
+    .map(([nombre,vistas])=>({ nombre, vistas }))
+    .sort((a,b)=>b.vistas-a.vistas).slice(0,8);
+  const maxCiudad = Math.max(1, ...topCiudades.map(c=>c.vistas));
+
   function filaBarra(label, valor, maxVal){
     const pct = Math.round((valor/maxVal)*100);
     return `<div class="stats-rank-row">
@@ -1649,6 +1724,11 @@ async function renderEstadisticas(){
     <div class="stats-seccion">
       <h4>🏢 Convenios más vistos</h4>
       ${topConvenios.length ? topConvenios.map(c=>filaBarra(c.nombre, c.vistas, maxConv)).join('') : '<p class="stats-vacio">Todavía no hay datos suficientes.</p>'}
+    </div>
+
+    <div class="stats-seccion">
+      <h4>📍 Localidades desde donde nos ven</h4>
+      ${topCiudades.length ? topCiudades.map(c=>filaBarra(c.nombre, c.vistas, maxCiudad)).join('') : '<p class="stats-vacio">Todavía no hay datos suficientes.</p>'}
     </div>
   `;
 }
@@ -2037,6 +2117,7 @@ async function validarClaveEdicion(){
 }
 function activarModoEdicion(){
   modoEdicion = true;
+  lsSet('bama:esAdmin', '1');
   document.getElementById('btnAdministrar').style.display = 'inline-block';
   document.getElementById('btnCandado').textContent = '🔓';
   document.getElementById('btnCandado').classList.add('desbloqueado');
@@ -2325,11 +2406,20 @@ async function guardarCategoria(){
   const nombre = document.getElementById('catNombre').value.trim();
   if(!nombre){ mostrarAviso('Escribe un nombre para la categoría'); return; }
 
+  let imagenUrl;
+  try{
+    imagenUrl = await subirComoStorage(imagenTemporalCat, 'categorias');
+  }catch(err){
+    console.error('Error subiendo la imagen:', err);
+    mostrarAviso('⚠ No se pudo subir la imagen. Intenta de nuevo.');
+    return;
+  }
+
   const datos = {
     nombre,
     icono: document.getElementById('catIcono').value,
     descripcion: document.getElementById('catDescripcion').value.trim(),
-    imagen: imagenTemporalCat,
+    imagen: imagenUrl,
     publicado: document.getElementById('catPublicado').checked
   };
 
@@ -2364,6 +2454,7 @@ async function eliminarCategoria(catId){
     : '¿Eliminar esta categoría?';
   if(!confirm(msg)) return;
 
+  const catAEliminar = categorias.find(c=>c.id===catId);
   const categoriasAnteriores = categorias;
   categorias = categorias.filter(c=>c.id!==catId);
   try{
@@ -2374,6 +2465,7 @@ async function eliminarCategoria(catId){
     mostrarAviso('⚠ No se pudo eliminar. Inténtalo de nuevo.');
     return;
   }
+  if(catAEliminar) borrarDeStorage(catAEliminar.imagen);
   popularSelectsCategoria();
   renderListaCategoriasAdmin();
   renderPortada();
@@ -2521,6 +2613,15 @@ async function guardarConvenio(){
   if(!empresa){ mostrarAviso('Escribe el nombre de la empresa'); return; }
   if(!categoriaId){ mostrarAviso('Selecciona una categoría'); return; }
 
+  let imagenUrl;
+  try{
+    imagenUrl = await subirComoStorage(imagenTemporalConv, 'convenios');
+  }catch(err){
+    console.error('Error subiendo la imagen:', err);
+    mostrarAviso('⚠ No se pudo subir la imagen. Intenta de nuevo.');
+    return;
+  }
+
   const precioValor = document.getElementById('convPrecio').value.trim();
   const datos = {
     categoriaId,
@@ -2530,7 +2631,7 @@ async function guardarConvenio(){
     precio: precioValor === '' ? null : Number(precioValor),
     descripcion: document.getElementById('convDescripcion').value.trim(),
     beneficio: document.getElementById('convBeneficio').value.trim(),
-    imagen: imagenTemporalConv,
+    imagen: imagenUrl,
     publicado: document.getElementById('convPublicado').checked,
     redes: convRedesTemp.map(r=>({...r}))
   };
@@ -2574,6 +2675,7 @@ async function guardarConvenio(){
 
 async function eliminarConvenio(convId){
   if(!confirm('¿Eliminar este convenio?')) return;
+  const conv = convenios.find(c=>c.id===convId);
   try{
     await eliminarUnConvenioDeStorage(convId);
   }catch(err){
@@ -2581,6 +2683,7 @@ async function eliminarConvenio(convId){
     mostrarAviso('⚠ No se pudo eliminar. Inténtalo de nuevo.');
     return;
   }
+  if(conv) borrarDeStorage(conv.imagen);
   convenios = convenios.filter(c=>c.id!==convId);
   renderListaConveniosAdmin();
   renderListaCategoriasAdmin();
@@ -3067,11 +3170,24 @@ async function guardarPromo(){
     return;
   }
 
+  let imagenUrl, videoUrl, archivoUrl;
+  try{
+    [imagenUrl, videoUrl, archivoUrl] = await Promise.all([
+      subirComoStorage(imagenTemporalPromo, 'promos/imagenes'),
+      subirComoStorage(videoTemporalPromo, 'promos/videos'),
+      subirComoStorage(archivoTemporalPromo, 'promos/archivos'),
+    ]);
+  }catch(err){
+    console.error('Error subiendo archivos de la promo:', err);
+    mostrarAviso('⚠ No se pudo subir el video/archivo. Intenta de nuevo.');
+    return;
+  }
+
   const obj = {
     id: id || generarId('promo'), empresa, categoria,
-    imagen: imagenTemporalPromo,
-    video: videoTemporalPromo,
-    archivo: archivoTemporalPromo,
+    imagen: imagenUrl,
+    video: videoUrl,
+    archivo: archivoUrl,
     archivoNombre: archivoTemporalPromoNombre,
   };
 
@@ -3090,6 +3206,8 @@ async function guardarPromo(){
 
 function eliminarPromo(id){
   if(!confirm('¿Eliminar esta promo del mes?')) return;
+  const p = promos.find(x=>x.id===id);
+  if(p){ borrarDeStorage(p.imagen); borrarDeStorage(p.video); borrarDeStorage(p.archivo); }
   promos = promos.filter(p=>p.id!==id);
   guardarPromos();
   renderListaPromosAdmin();
@@ -3402,13 +3520,23 @@ async function previsualizarAnuncioAdmin(event){
 
 async function guardarAnuncio(){
   if(!imagenTemporalAnuncio){ mostrarAviso('Selecciona una imagen primero.'); return; }
-  await fbSet(CLAVE_ANUNCIO, { imagen: imagenTemporalAnuncio });
-  actualizarPanelAnuncioAdmin(imagenTemporalAnuncio);
+  let imagenUrl;
+  try{
+    imagenUrl = await subirComoStorage(imagenTemporalAnuncio, 'anuncio');
+  }catch(err){
+    console.error('Error subiendo el anuncio:', err);
+    mostrarAviso('⚠ No se pudo subir la imagen. Intenta de nuevo.');
+    return;
+  }
+  await fbSet(CLAVE_ANUNCIO, { imagen: imagenUrl });
+  actualizarPanelAnuncioAdmin(imagenUrl);
   mostrarAviso('Anuncio publicado ✓');
 }
 
 async function quitarAnuncio(){
   if(!confirm('¿Quitar el anuncio? Ya no aparecerá el popup al abrir la página.')) return;
+  const anuncioActual = await fbGet(CLAVE_ANUNCIO);
+  if(anuncioActual && anuncioActual.imagen) borrarDeStorage(anuncioActual.imagen);
   await fbDel(CLAVE_ANUNCIO);
   imagenTemporalAnuncio = null;
   document.getElementById('anuncioAdminPreview').src = '';
@@ -3563,14 +3691,26 @@ async function cargarPanelTriviaAdmin(){
 }
 
 async function guardarTriviaForm(){
+  let imagenUrl, videoUrl, archivoUrl;
+  try{
+    [imagenUrl, videoUrl, archivoUrl] = await Promise.all([
+      subirComoStorage(imagenTemporalTrivia, 'trivia/imagenes'),
+      subirComoStorage(videoTemporalTrivia, 'trivia/videos'),
+      subirComoStorage(archivoTemporalTrivia, 'trivia/archivos'),
+    ]);
+  }catch(err){
+    console.error('Error subiendo archivos de la trivia:', err);
+    mostrarAviso('⚠ No se pudo subir el video/archivo. Intenta de nuevo.');
+    return;
+  }
   trivia = {
     activo: document.getElementById('triviaActivo').checked,
     titulo: document.getElementById('triviaTitulo').value.trim() || TRIVIA_DEFAULT.titulo,
     descripcion: document.getElementById('triviaDescripcion').value.trim(),
     link: document.getElementById('triviaLink').value.trim(),
-    imagen: imagenTemporalTrivia,
-    video: videoTemporalTrivia,
-    archivo: archivoTemporalTrivia,
+    imagen: imagenUrl,
+    video: videoUrl,
+    archivo: archivoUrl,
     archivoNombre: archivoTemporalTriviaNombre,
   };
   await guardarTriviaEnFirebase();
@@ -3580,6 +3720,7 @@ async function guardarTriviaForm(){
 
 async function quitarTrivia(){
   if(!confirm('¿Borrar por completo la sección de Trivia del Mes?')) return;
+  borrarDeStorage(trivia.imagen); borrarDeStorage(trivia.video); borrarDeStorage(trivia.archivo);
   trivia = {...TRIVIA_DEFAULT};
   await fbDel('trivia');
   await cargarPanelTriviaAdmin();
@@ -3613,7 +3754,7 @@ function cerrarTrivia(){
   document.getElementById('modalTriviaOverlay').classList.remove('activo');
 }
 async function trackTrivia(){
-  if(modoEdicion) return;
+  if(modoEdicion || esDispositivoAdmin()) return;
   await fbIncrementar('analytics/triviaVistas');
 }
 
