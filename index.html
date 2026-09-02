@@ -411,7 +411,7 @@
     background:none; border:none; color:#fff; font-size:20px; cursor:pointer; opacity:0.8;
   }
   .admin-body{ padding: 24px 26px 28px; }
-  .admin-tabs{ display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
+  .admin-tabs{ display:flex; gap:8px; margin-bottom:20px; }
   .admin-tab{
     flex:1; text-align:center; padding:9px 0; border-radius:10px; font-size:13px; font-weight:700;
     background: var(--gris-claro); color: var(--gris); cursor:pointer; border:none;
@@ -518,20 +518,6 @@
   .lista-admin-item .texto strong{ display:block; font-size:14px; }
   .lista-admin-item .texto span{ font-size:12px; color: var(--gris); }
   .lista-admin-item .acciones{ display:flex; gap:6px; }
-
-  /* ---------- ESTADÍSTICAS (panel admin, solo tú) ---------- */
-  .stats-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); gap:10px; margin-bottom:22px; }
-  .stats-card{ background: var(--gris-claro); border-radius: 12px; padding: 14px 12px; text-align:center; }
-  .stats-card .num{ font-size:22px; font-weight:900; color: var(--azul-mas-osc); line-height:1.1; }
-  .stats-card .lbl{ font-size:11px; color:#6B7280; margin-top:4px; font-weight:600; }
-  .stats-seccion{ margin-bottom:22px; }
-  .stats-seccion h4{ font-size:13px; margin:0 0 10px; color:var(--azul-mas-osc); }
-  .stats-rank-row{ display:flex; align-items:center; gap:10px; margin-bottom:8px; font-size:12.5px; }
-  .stats-rank-row .rank-label{ width:150px; flex-shrink:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#333; }
-  .stats-rank-row .rank-bar-track{ flex:1; background:#e8ecf2; border-radius:6px; height:14px; overflow:hidden; }
-  .stats-rank-row .rank-bar-fill{ background: linear-gradient(90deg, var(--azul), var(--amarillo)); height:100%; border-radius:6px; }
-  .stats-rank-row .rank-num{ width:34px; text-align:right; flex-shrink:0; font-weight:700; color:var(--azul-mas-osc); }
-  .stats-vacio{ font-size:12.5px; color:#9aa4b2; font-style:italic; }
   .icon-btn{
     background: var(--gris-claro); border:none; width:32px; height:32px; border-radius:8px;
     cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center;
@@ -754,7 +740,7 @@
   }
   #anuncioBox{
     position:relative;
-    max-width:780px; width:100%;
+    max-width:600px; width:100%;
     border-radius:20px; overflow:hidden;
     box-shadow: 0 30px 70px rgba(0,0,0,0.5);
     animation: popupEntrada 0.35s cubic-bezier(0.34,1.56,0.64,1);
@@ -764,7 +750,7 @@
     to{ transform:scale(1); opacity:1; }
   }
   #anuncioImg{
-    display:block; width:100%; max-height:90vh;
+    display:block; width:100%; max-height:85vh;
     object-fit:contain; border-radius:20px;
     background:#000;
   }
@@ -798,7 +784,6 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 </head>
 <body>
 
@@ -858,29 +843,9 @@
   <div class="modal-promo-detalle">
     <button class="cerrar-x" onclick="cerrarDetallePromo()">✕</button>
     <img class="img-promo-full" id="promoDetalleImg" src="" alt="" style="display:none">
-    <video class="img-promo-full" id="promoDetalleVideo" src="" controls style="display:none"></video>
     <div class="contenido-promo-detalle">
       <span class="tag-cat-promo-lg" id="promoDetalleCat">Categoría</span>
       <h3 id="promoDetalleEmpresa">Empresa</h3>
-      <a id="promoDetalleArchivo" href="" download="" style="display:none; margin-top:14px;" class="btn-primario">📎 Descargar archivo</a>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL TRIVIA DEL MES -->
-<div class="modal-promo-detalle-overlay" id="modalTriviaOverlay" onclick="if(event.target.id==='modalTriviaOverlay') cerrarTrivia()">
-  <div class="modal-promo-detalle">
-    <button class="cerrar-x" onclick="cerrarTrivia()">✕</button>
-    <img class="img-promo-full" id="triviaDetalleImg" src="" alt="" style="display:none">
-    <video class="img-promo-full" id="triviaDetalleVideo" src="" controls style="display:none"></video>
-    <div class="contenido-promo-detalle">
-      <span class="tag-cat-promo-lg" id="triviaBadge">🎯 Trivia del Mes</span>
-      <h3 id="triviaDetalleTitulo">Trivia del Mes</h3>
-      <p id="triviaDetalleDescripcion" style="font-size:14px;color:#444;line-height:1.6;margin:10px 0 0;"></p>
-      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:16px;">
-        <a id="triviaDetalleLink" href="" target="_blank" rel="noopener noreferrer" style="display:none;" class="btn-primario">🎯 Participar</a>
-        <a id="triviaDetalleArchivo" href="" download="" style="display:none;" class="btn-secundario">📎 Descargar archivo</a>
-      </div>
     </div>
   </div>
 </div>
@@ -978,8 +943,6 @@
         <button class="admin-tab" id="tabAnuncio" onclick="cambiarTabAdmin('anuncio')">Anuncio</button>
         <button class="admin-tab" id="tabContacto" onclick="cambiarTabAdmin('contacto')">Contacto</button>
         <button class="admin-tab" id="tabTextos" onclick="cambiarTabAdmin('textos')">Textos</button>
-        <button class="admin-tab" id="tabEstadisticas" onclick="cambiarTabAdmin('estadisticas')">📊 Estadísticas</button>
-        <button class="admin-tab" id="tabTrivia" onclick="cambiarTabAdmin('trivia')">🎯 Trivia del Mes</button>
       </div>
 
       <!-- TAB CATEGORÍAS -->
@@ -1064,75 +1027,6 @@
         <div class="fila-botones">
           <button class="btn-secundario" onclick="resetearTextos()">Restaurar original</button>
           <button class="btn-primario" onclick="guardarTextos()">Guardar textos</button>
-        </div>
-      </div>
-
-      <!-- TAB ESTADÍSTICAS (solo visible para ti, autenticado) -->
-      <div id="panelEstadisticas" style="display:none;">
-        <p style="font-size:13px;color:#6B7280;margin:0 0 16px;">
-          Tráfico y uso de la página. Solo tú puedes ver esta información: se muestra únicamente
-          dentro del panel de administrador, con tu sesión iniciada.
-        </p>
-        <div id="estadisticasContenido">Cargando estadísticas…</div>
-        <button class="btn-secundario" style="margin-top:14px; width:100%;" onclick="renderEstadisticas()">🔄 Actualizar</button>
-      </div>
-
-      <!-- TAB TRIVIA DEL MES -->
-      <div id="panelTrivia" style="display:none;">
-        <p style="font-size:13px;color:#6B7280;margin:0 0 16px;">
-          Crea una dinámica para que las marcas nos den obsequios y los colaboradores puedan
-          ganar premios interactuando. Solo se ve en la página cuando la actives.
-        </p>
-        <label style="display:flex; align-items:center; gap:10px; background:var(--gris-claro); padding:12px 14px; border-radius:10px; margin-bottom:16px; cursor:pointer;">
-          <input type="checkbox" id="triviaActivo" style="width:18px;height:18px;">
-          <span style="font-size:13.5px; font-weight:700; color:var(--azul-mas-osc);">Mostrar esta sección en la página a los colaboradores</span>
-        </label>
-        <div class="campo">
-          <label>Título</label>
-          <input type="text" id="triviaTitulo" placeholder="Trivia del Mes · ¡Gánate un premio!">
-        </div>
-        <div class="campo">
-          <label>Descripción</label>
-          <textarea id="triviaDescripcion" style="min-height:80px;" placeholder="Responde la trivia y participa por premios de nuestras marcas aliadas."></textarea>
-        </div>
-        <div class="campo">
-          <label>Link de participación <span style="font-weight:400;color:#6B7280;">(formulario, encuesta, etc.)</span></label>
-          <input type="text" id="triviaLink" placeholder="https://...">
-        </div>
-        <div class="campo">
-          <label>Imagen <span style="font-weight:400;color:#6B7280;">(opcional)</span></label>
-          <div class="subir-imagen-zona">
-            <input type="file" accept="image/*" id="triviaImagenInput" onchange="previsualizarTriviaImagen(event)">
-            <button type="button" class="btn-seleccionar" onclick="document.getElementById('triviaImagenInput').click()">📷 Seleccionar imagen</button>
-            <p>JPG o PNG · máx. 20 MB</p>
-            <img class="preview" id="triviaImagenPreview">
-          </div>
-        </div>
-        <div class="campo">
-          <label>Video <span style="font-weight:400;color:#6B7280;">(opcional)</span></label>
-          <div class="subir-imagen-zona">
-            <input type="file" accept="video/*" id="triviaVideoInput" onchange="previsualizarTriviaVideo(event)">
-            <button type="button" class="btn-seleccionar" onclick="document.getElementById('triviaVideoInput').click()">🎬 Seleccionar video</button>
-            <p>MP4 o WebM · máx. 20 MB</p>
-            <video class="preview" id="triviaVideoPreview" controls style="display:none; width:100%; border-radius:10px; margin-top:8px;"></video>
-            <button type="button" class="btn-peligro" id="triviaVideoQuitar" style="display:none; margin-top:8px;" onclick="quitarTriviaVideo()">🗑 Quitar video</button>
-          </div>
-        </div>
-        <div class="campo">
-          <label>Archivo adjunto <span style="font-weight:400;color:#6B7280;">(bases del concurso, cupón, etc. — opcional)</span></label>
-          <div class="subir-imagen-zona">
-            <input type="file" id="triviaArchivoInput" onchange="previsualizarTriviaArchivo(event)">
-            <button type="button" class="btn-seleccionar" onclick="document.getElementById('triviaArchivoInput').click()">📎 Seleccionar archivo</button>
-            <p>Cualquier formato · máx. 15 MB</p>
-            <div id="triviaArchivoChip" style="display:none; margin-top:8px; font-size:13px; background:var(--gris-claro); padding:8px 12px; border-radius:8px;">
-              📎 <span id="triviaArchivoNombre"></span>
-              <button type="button" class="btn-peligro" style="margin-left:8px;" onclick="quitarTriviaArchivo()">🗑</button>
-            </div>
-          </div>
-        </div>
-        <div class="fila-botones">
-          <button class="btn-peligro" onclick="quitarTrivia()">🗑 Borrar sección</button>
-          <button class="btn-primario" onclick="guardarTriviaForm()">Guardar trivia</button>
         </div>
       </div>
     </div>
@@ -1307,28 +1201,6 @@
           <img class="preview" id="promoImagenPreview">
         </div>
       </div>
-      <div class="campo">
-        <label>Video de la promo <span style="font-weight:400;color:#6B7280;">(opcional)</span></label>
-        <div class="subir-imagen-zona">
-          <input type="file" accept="video/*" id="promoVideoInput" onchange="previsualizarPromoVideo(event)">
-          <button type="button" class="btn-seleccionar" onclick="document.getElementById('promoVideoInput').click()">🎬 Seleccionar video</button>
-          <p>MP4 o WebM · máx. 20 MB</p>
-          <video class="preview" id="promoVideoPreview" controls style="display:none; width:100%; border-radius:10px; margin-top:8px;"></video>
-          <button type="button" class="btn-peligro" id="promoVideoQuitar" style="display:none; margin-top:8px;" onclick="quitarPromoVideo()">🗑 Quitar video</button>
-        </div>
-      </div>
-      <div class="campo">
-        <label>Archivo adjunto <span style="font-weight:400;color:#6B7280;">(PDF, cupón, etc. — opcional)</span></label>
-        <div class="subir-imagen-zona">
-          <input type="file" id="promoArchivoInput" onchange="previsualizarPromoArchivo(event)">
-          <button type="button" class="btn-seleccionar" onclick="document.getElementById('promoArchivoInput').click()">📎 Seleccionar archivo</button>
-          <p>Cualquier formato · máx. 15 MB</p>
-          <div id="promoArchivoChip" style="display:none; margin-top:8px; font-size:13px; background:var(--gris-claro); padding:8px 12px; border-radius:8px;">
-            📎 <span id="promoArchivoNombre"></span>
-            <button type="button" class="btn-peligro" style="margin-left:8px;" onclick="quitarPromoArchivo()">🗑</button>
-          </div>
-        </div>
-      </div>
       <div class="fila-botones">
         <button class="btn-secundario" onclick="cerrarFormPromo()">Cancelar</button>
         <button class="btn-primario" onclick="guardarPromo()">Guardar promo</button>
@@ -1414,9 +1286,6 @@ function normalizarUrlRed(url){
   return 'https://' + url;
 }
 let imagenTemporalPromo = null;
-let videoTemporalPromo = null;
-let archivoTemporalPromo = null;
-let archivoTemporalPromoNombre = null;
 let imagenTemporalAnuncio = null;
 const CLAVE_ANUNCIO = 'anuncio';
 let categoriaActivaId = null;
@@ -1471,13 +1340,11 @@ function generarId(prefijo){
 const FB_CONFIG = {
   apiKey: "AIzaSyDB1Rodc4QLd83pt1pdN3phVF4pO8mmUcg",
   databaseURL: "https://convenios-bama-default-rtdb.firebaseio.com",
-  projectId: "convenios-bama",
-  storageBucket: "convenios-bama.firebasestorage.app"
+  projectId: "convenios-bama"
 };
 
 // Inicializar Firebase (usando CDN compat v9)
 let fbDB = null;
-let fbStorage = null;
 async function initFirebase(){
   if(fbDB) return fbDB;
   try{
@@ -1485,44 +1352,6 @@ async function initFirebase(){
     fbDB = firebase.database();
     return fbDB;
   }catch(e){ console.warn('Firebase init error:', e); return null; }
-}
-async function initFirebaseStorage(){
-  if(fbStorage) return fbStorage;
-  try{
-    if(!firebase.apps.length) firebase.initializeApp(FB_CONFIG);
-    fbStorage = firebase.storage();
-    return fbStorage;
-  }catch(e){ console.warn('Firebase Storage init error:', e); return null; }
-}
-
-// Convierte un dataURL (imagen/video ya leído localmente, en base64) en un
-// archivo real y lo sube a Firebase Storage; devuelve el link público de
-// descarga. Esto es lo que hace que la página cargue rápido: en vez de
-// guardar el archivo completo dentro de la base de datos, solo se guarda
-// este link (unos cuantos caracteres) y el archivo se sirve directo desde
-// Storage, como cualquier imagen normal de internet.
-async function subirComoStorage(dataUrl, carpeta){
-  if(!dataUrl) return null;
-  if(!dataUrl.startsWith('data:')) return dataUrl; // ya es un link (no se tocó al editar)
-  const storage = await initFirebaseStorage();
-  if(!storage) throw new Error('No se pudo conectar con el almacenamiento.');
-  const resp = await fetch(dataUrl);
-  const blob = await resp.blob();
-  const nombre = Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-  const ref = storage.ref(carpeta + '/' + nombre);
-  await ref.put(blob);
-  return await ref.getDownloadURL();
-}
-
-// Borra un archivo de Storage a partir de su link (si el campo no es un
-// link de Storage —por ejemplo si quedó vacío— simplemente no hace nada).
-async function borrarDeStorage(url){
-  if(!url || !url.startsWith('http')) return;
-  try{
-    const storage = await initFirebaseStorage();
-    if(!storage) return;
-    await storage.refFromURL(url).delete();
-  }catch(e){ console.warn('No se pudo borrar de Storage (puede que ya no exista):', e); }
 }
 
 // Leer de Firebase
@@ -1560,191 +1389,17 @@ function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; 
 function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 function lsDel(k){ try{ localStorage.removeItem(k); }catch(e){} }
 
-/* =========================================================
-   ANALÍTICA — tráfico y uso de la página (solo visible para
-   ti, dentro del panel de administrador con tu sesión iniciada).
-   Los visitantes normales nunca ven esta información: no hay
-   ningún botón, texto ni pantalla en el modo lectura que la
-   muestre; vive únicamente dentro del panel ⚙ Administrar.
-   ========================================================= */
-function hoyISO(){
-  const d = new Date();
-  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-}
-function idVisitanteLocal(){
-  let id = lsGet('bama:deviceId');
-  if(!id){
-    id = 'v_' + Date.now() + '_' + Math.random().toString(36).slice(2,10);
-    lsSet('bama:deviceId', id);
-  }
-  return id;
-}
-// Una vez que este navegador inició sesión de administrador (aunque sea una
-// sola vez), lo marcamos como "dispositivo admin" de forma permanente, para
-// que ninguna visita futura desde aquí se cuente en las estadísticas —
-// incluso si navegas en modo lectura, sin haber iniciado sesión ese día.
-function esDispositivoAdmin(){
-  return lsGet('bama:esAdmin') === '1';
-}
-async function fbIncrementar(path){
-  try{
-    const db = await initFirebase();
-    if(!db) return;
-    await db.ref(path).set(firebase.database.ServerValue.increment(1));
-  }catch(e){ console.warn('fbIncrementar error:', e); }
-}
-// Registra una visita a la página (una vez por carga). No identifica a la
-// persona: solo guarda un id aleatorio de dispositivo (para poder contar
-// visitantes distintos) y la fecha, nunca nombre, correo ni IP.
-// Localidad aproximada del visitante, a partir de su IP. No usa el GPS del
-// navegador ni pide permiso: es una estimación aproximada basada en un
-// servicio externo (ipapi.co), solo para saber desde qué localidades nos ven.
-async function obtenerUbicacionVisitante(){
-  try{
-    const resp = await fetch('https://ipapi.co/json/');
-    if(!resp.ok) return null;
-    const data = await resp.json();
-    if(data && data.city){
-      return { ciudad: data.city + (data.region ? ', ' + data.region : '') };
-    }
-    return null;
-  }catch(e){ return null; }
-}
-
-async function registrarVisita(){
-  if(esDispositivoAdmin()) return; // tus propias visitas nunca se cuentan
-  try{
-    const idv = idVisitanteLocal();
-    const dia = hoyISO();
-    await fbIncrementar('analytics/visitasTotal');
-    await fbIncrementar('analytics/visitasPorDia/' + dia);
-    await fbSet('analytics/visitantesUnicos/' + idv, true);
-    await fbSet('analytics/ultimaVisita', Date.now());
-
-    const ubicacion = await obtenerUbicacionVisitante();
-    if(ubicacion && ubicacion.ciudad){
-      await fbIncrementar('analytics/ciudades/' + ubicacion.ciudad.replace(/[.#$/\[\]]/g, ''));
-    }
-  }catch(e){ console.warn('registrarVisita error:', e); }
-}
-// Vista de una categoría. No se cuenta cuando tú navegas con tu sesión de
-// administrador activa, para que tus propias pruebas no distorsionen los
-// números reales de los colaboradores.
-async function trackCategoria(catId){
-  if(modoEdicion || esDispositivoAdmin()) return;
-  await fbIncrementar('analytics/categorias/' + catId);
-}
-// Vista de detalle de un convenio.
-async function trackConvenio(convId){
-  if(modoEdicion || esDispositivoAdmin()) return;
-  await fbIncrementar('analytics/convenios/' + convId);
-}
-// Interacciones generales (clics) dentro de la página, para poder calcular
-// "qué tan seguido interactúan" las personas por visita.
-async function trackInteraccion(){
-  if(modoEdicion || esDispositivoAdmin()) return;
-  await fbIncrementar('analytics/interaccionesTotal');
-  await fbIncrementar('analytics/interaccionesPorDia/' + hoyISO());
-}
-document.addEventListener('click', function(e){
-  if(modoEdicion || esDispositivoAdmin()) return;
-  // Ignora clics dentro del panel de administrador / candado / modal de clave
-  if(e.target.closest('#adminOverlay, #claveOverlay, #btnCandado, #btnAdministrar')) return;
-  trackInteraccion();
-}, true);
-
-async function renderEstadisticas(){
-  const cont = document.getElementById('estadisticasContenido');
-  cont.innerHTML = 'Cargando estadísticas…';
-  const datos = await fbGet('analytics') || {};
-
-  const visitasTotal = datos.visitasTotal || 0;
-  const interaccionesTotal = datos.interaccionesTotal || 0;
-  const visitantesUnicos = datos.visitantesUnicos ? Object.keys(datos.visitantesUnicos).length : 0;
-  const promedioInteraccionesPorVisita = visitasTotal>0 ? (interaccionesTotal/visitasTotal).toFixed(1) : '0';
-  const triviaVistas = datos.triviaVistas || 0;
-
-  const catViews = datos.categorias || {};
-  const convViews = datos.convenios || {};
-  const porDia = datos.visitasPorDia || {};
-
-  const topCategorias = Object.entries(catViews)
-    .map(([id,vistas])=>({ id, vistas, nombre: (categorias.find(c=>c.id===id)||{}).nombre || id }))
-    .sort((a,b)=>b.vistas-a.vistas).slice(0,8);
-
-  const topConvenios = Object.entries(convViews)
-    .map(([id,vistas])=>({ id, vistas, nombre: (convenios.find(c=>c.id===id)||{}).empresa || id }))
-    .sort((a,b)=>b.vistas-a.vistas).slice(0,8);
-
-  const ultimos14 = [];
-  for(let i=13;i>=0;i--){
-    const d = new Date();
-    d.setDate(d.getDate()-i);
-    const key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-    ultimos14.push({ dia: key.slice(5), vistas: porDia[key]||0 });
-  }
-  const maxDia = Math.max(1, ...ultimos14.map(d=>d.vistas));
-  const maxCat = Math.max(1, ...topCategorias.map(c=>c.vistas));
-  const maxConv = Math.max(1, ...topConvenios.map(c=>c.vistas));
-
-  const ciudadViews = datos.ciudades || {};
-  const topCiudades = Object.entries(ciudadViews)
-    .map(([nombre,vistas])=>({ nombre, vistas }))
-    .sort((a,b)=>b.vistas-a.vistas).slice(0,8);
-  const maxCiudad = Math.max(1, ...topCiudades.map(c=>c.vistas));
-
-  function filaBarra(label, valor, maxVal){
-    const pct = Math.round((valor/maxVal)*100);
-    return `<div class="stats-rank-row">
-      <span class="rank-label" title="${escapeHtml(String(label))}">${escapeHtml(String(label))}</span>
-      <span class="rank-bar-track"><span class="rank-bar-fill" style="width:${pct}%;"></span></span>
-      <span class="rank-num">${valor}</span>
-    </div>`;
-  }
-
-  cont.innerHTML = `
-    <div class="stats-grid">
-      <div class="stats-card"><div class="num">${visitasTotal}</div><div class="lbl">Visitas totales</div></div>
-      <div class="stats-card"><div class="num">${visitantesUnicos}</div><div class="lbl">Visitantes distintos</div></div>
-      <div class="stats-card"><div class="num">${interaccionesTotal}</div><div class="lbl">Interacciones totales</div></div>
-      <div class="stats-card"><div class="num">${promedioInteraccionesPorVisita}</div><div class="lbl">Interacciones / visita</div></div>
-      <div class="stats-card"><div class="num">${triviaVistas}</div><div class="lbl">Vistas de Trivia 🎯</div></div>
-    </div>
-
-    <div class="stats-seccion">
-      <h4>📅 Visitas — últimos 14 días</h4>
-      ${ultimos14.map(d=>filaBarra(d.dia, d.vistas, maxDia)).join('')}
-    </div>
-
-    <div class="stats-seccion">
-      <h4>🏷️ Categorías más vistas</h4>
-      ${topCategorias.length ? topCategorias.map(c=>filaBarra(c.nombre, c.vistas, maxCat)).join('') : '<p class="stats-vacio">Todavía no hay datos suficientes.</p>'}
-    </div>
-
-    <div class="stats-seccion">
-      <h4>🏢 Convenios más vistos</h4>
-      ${topConvenios.length ? topConvenios.map(c=>filaBarra(c.nombre, c.vistas, maxConv)).join('') : '<p class="stats-vacio">Todavía no hay datos suficientes.</p>'}
-    </div>
-
-    <div class="stats-seccion">
-      <h4>📍 Localidades desde donde nos ven</h4>
-      ${topCiudades.length ? topCiudades.map(c=>filaBarra(c.nombre, c.vistas, maxCiudad)).join('') : '<p class="stats-vacio">Todavía no hay datos suficientes.</p>'}
-    </div>
-  `;
-}
-
 async function cargarDatos(){
   document.getElementById('cargandoOverlay').style.display = 'flex';
   try{
     // Leer todo de Firebase en paralelo
-    const [rawCat, rawIdx, rawTex, rawPromos, rawAnuncio, rawContactos, rawTrivia] = await Promise.all([
+    const [rawCat, rawIdx, rawTex, rawPromos, rawAnuncio, rawContactos] = await Promise.all([
       fbGet('categorias'),
       fbGet('conveniosIdx'),
       fbGet('textos'),
       fbGet('promos'),
       fbGet(CLAVE_ANUNCIO),
-      fbGet('contactos'),
-      fbGet('trivia')
+      fbGet('contactos')
     ]);
 
     // Categorías
@@ -1773,9 +1428,6 @@ async function cargarDatos(){
 
     // Contactos para tarjeta de beneficios
     contactos = rawContactos ? (Array.isArray(rawContactos) ? rawContactos : Object.values(rawContactos)) : [];
-
-    // Trivia del mes
-    trivia = rawTrivia || {...TRIVIA_DEFAULT};
 
     // Anuncio popup
     if(rawAnuncio && rawAnuncio.imagen){
@@ -1860,27 +1512,6 @@ function renderPortada(){
   `;
   grid.appendChild(promosCard);
 
-  // Tarjeta especial "Trivia del Mes" — solo visible si está activada, o en
-  // modo edición (marcada como borrador) para que puedas previsualizarla.
-  if(trivia && (trivia.activo || modoEdicion)){
-    const triviaCard = document.createElement('div');
-    triviaCard.className = 'promos-card-vitrina';
-    triviaCard.onclick = () => abrirTrivia();
-    const esBorradorTrivia = modoEdicion && !trivia.activo;
-    triviaCard.innerHTML = `
-      ${esBorradorTrivia ? `<span class="badge-borrador" style="position:absolute; top:14px; left:14px; z-index:3;">🔒 Solo tú lo ves</span>` : ''}
-      <div class="bg-icon">🏆</div>
-      <div class="overlay"></div>
-      <div class="chispa">🎯 ¡Participa!</div>
-      <div class="info">
-        <span class="conteo">Gánate un premio</span>
-        <h3>🏆 ${escapeHtml(trivia.titulo || TRIVIA_DEFAULT.titulo)}</h3>
-      </div>
-    `;
-    triviaCard.style.position = 'relative';
-    grid.appendChild(triviaCard);
-  }
-
   const categoriasVisibles = modoEdicion ? categorias : categorias.filter(c=>c.publicado !== false);
   categoriasVisibles.forEach(cat=>{
     const esBorrador = modoEdicion && cat.publicado === false;
@@ -1917,7 +1548,6 @@ function abrirCategoria(catId){
   if(!cat) return;
   if(cat.publicado===false && !modoEdicion) return; // categoría en borrador: no accesible para visitantes
   categoriaActivaId = catId;
-  trackCategoria(catId);
 
   document.getElementById('vistaPortada').classList.add('oculta');
   document.getElementById('vistaCategoria').classList.add('activa');
@@ -1929,12 +1559,6 @@ function abrirCategoria(catId){
 
   document.getElementById('buscarLugarConvenio').value = '';
   document.getElementById('ordenPrecioConvenio').value = '';
-
-  // El buscador por ciudad y el orden por precio solo tienen sentido en
-  // Hospedaje (es la única categoría con esos datos cargados). En las
-  // demás categorías se oculta la barra de filtros.
-  const esHospedaje = (cat.nombre || '').trim().toLowerCase() === 'hospedaje';
-  document.getElementById('filtrosConvenios').style.display = esHospedaje ? 'flex' : 'none';
 
   renderConvenios(catId);
   window.scrollTo({top:0, behavior:'smooth'});
@@ -2020,7 +1644,6 @@ function renderConvenios(catId){
 function abrirDetalleConvenio(convId){
   const conv = convenios.find(c=>c.id===convId);
   if(!conv) return;
-  trackConvenio(convId);
   const cat = categorias.find(c=>c.id===conv.categoriaId);
 
   const imgEl = document.getElementById('modalImg');
@@ -2117,7 +1740,6 @@ async function validarClaveEdicion(){
 }
 function activarModoEdicion(){
   modoEdicion = true;
-  lsSet('bama:esAdmin', '1');
   document.getElementById('btnAdministrar').style.display = 'inline-block';
   document.getElementById('btnCandado').textContent = '🔓';
   document.getElementById('btnCandado').classList.add('desbloqueado');
@@ -2172,24 +1794,18 @@ function cambiarTabAdmin(tab){
   const esAnuncio = tab==='anuncio';
   const esContacto = tab==='contacto';
   const esTxt = tab==='textos';
-  const esStats = tab==='estadisticas';
-  const esTrivia = tab==='trivia';
   document.getElementById('tabCategorias').classList.toggle('activo', esCat);
   document.getElementById('tabConvenios').classList.toggle('activo', esConv);
   document.getElementById('tabPromos').classList.toggle('activo', esPro);
   document.getElementById('tabAnuncio').classList.toggle('activo', esAnuncio);
   document.getElementById('tabContacto').classList.toggle('activo', esContacto);
   document.getElementById('tabTextos').classList.toggle('activo', esTxt);
-  document.getElementById('tabEstadisticas').classList.toggle('activo', esStats);
-  document.getElementById('tabTrivia').classList.toggle('activo', esTrivia);
   document.getElementById('panelCategorias').style.display = esCat ? 'block':'none';
   document.getElementById('panelConvenios').style.display = esConv ? 'block':'none';
   document.getElementById('panelPromos').style.display = esPro ? 'block':'none';
   document.getElementById('panelAnuncio').style.display = esAnuncio ? 'block':'none';
   document.getElementById('panelContacto').style.display = esContacto ? 'block':'none';
   document.getElementById('panelTextos').style.display = esTxt ? 'block':'none';
-  document.getElementById('panelEstadisticas').style.display = esStats ? 'block':'none';
-  document.getElementById('panelTrivia').style.display = esTrivia ? 'block':'none';
   if(esTxt){
     document.getElementById('textoEyebrow').value = textos.eyebrow || TEXTOS_DEFAULT.eyebrow;
     document.getElementById('textoTitulo').value = textos.titulo || TEXTOS_DEFAULT.titulo;
@@ -2201,8 +1817,6 @@ function cambiarTabAdmin(tab){
   if(esPro) renderListaPromosAdmin();
   if(esAnuncio) cargarPanelAnuncioAdmin();
   if(esContacto) renderListaContactosAdmin();
-  if(esStats) renderEstadisticas();
-  if(esTrivia) cargarPanelTriviaAdmin();
 }
 
 function popularSelectsCategoria(){
@@ -2406,20 +2020,11 @@ async function guardarCategoria(){
   const nombre = document.getElementById('catNombre').value.trim();
   if(!nombre){ mostrarAviso('Escribe un nombre para la categoría'); return; }
 
-  let imagenUrl;
-  try{
-    imagenUrl = await subirComoStorage(imagenTemporalCat, 'categorias');
-  }catch(err){
-    console.error('Error subiendo la imagen:', err);
-    mostrarAviso('⚠ No se pudo subir la imagen. Intenta de nuevo.');
-    return;
-  }
-
   const datos = {
     nombre,
     icono: document.getElementById('catIcono').value,
     descripcion: document.getElementById('catDescripcion').value.trim(),
-    imagen: imagenUrl,
+    imagen: imagenTemporalCat,
     publicado: document.getElementById('catPublicado').checked
   };
 
@@ -2454,7 +2059,6 @@ async function eliminarCategoria(catId){
     : '¿Eliminar esta categoría?';
   if(!confirm(msg)) return;
 
-  const catAEliminar = categorias.find(c=>c.id===catId);
   const categoriasAnteriores = categorias;
   categorias = categorias.filter(c=>c.id!==catId);
   try{
@@ -2465,7 +2069,6 @@ async function eliminarCategoria(catId){
     mostrarAviso('⚠ No se pudo eliminar. Inténtalo de nuevo.');
     return;
   }
-  if(catAEliminar) borrarDeStorage(catAEliminar.imagen);
   popularSelectsCategoria();
   renderListaCategoriasAdmin();
   renderPortada();
@@ -2613,15 +2216,6 @@ async function guardarConvenio(){
   if(!empresa){ mostrarAviso('Escribe el nombre de la empresa'); return; }
   if(!categoriaId){ mostrarAviso('Selecciona una categoría'); return; }
 
-  let imagenUrl;
-  try{
-    imagenUrl = await subirComoStorage(imagenTemporalConv, 'convenios');
-  }catch(err){
-    console.error('Error subiendo la imagen:', err);
-    mostrarAviso('⚠ No se pudo subir la imagen. Intenta de nuevo.');
-    return;
-  }
-
   const precioValor = document.getElementById('convPrecio').value.trim();
   const datos = {
     categoriaId,
@@ -2631,7 +2225,7 @@ async function guardarConvenio(){
     precio: precioValor === '' ? null : Number(precioValor),
     descripcion: document.getElementById('convDescripcion').value.trim(),
     beneficio: document.getElementById('convBeneficio').value.trim(),
-    imagen: imagenUrl,
+    imagen: imagenTemporalConv,
     publicado: document.getElementById('convPublicado').checked,
     redes: convRedesTemp.map(r=>({...r}))
   };
@@ -2675,7 +2269,6 @@ async function guardarConvenio(){
 
 async function eliminarConvenio(convId){
   if(!confirm('¿Eliminar este convenio?')) return;
-  const conv = convenios.find(c=>c.id===convId);
   try{
     await eliminarUnConvenioDeStorage(convId);
   }catch(err){
@@ -2683,7 +2276,6 @@ async function eliminarConvenio(convId){
     mostrarAviso('⚠ No se pudo eliminar. Inténtalo de nuevo.');
     return;
   }
-  if(conv) borrarDeStorage(conv.imagen);
   convenios = convenios.filter(c=>c.id!==convId);
   renderListaConveniosAdmin();
   renderListaCategoriasAdmin();
@@ -2894,21 +2486,6 @@ function leerImagenSinComprimir(archivo){
   });
 }
 
-// Lector genérico para video y archivos adjuntos (sin compresión: se
-// guardan tal cual, como dataURL). Usado por Promos y por Trivia del Mes.
-function leerArchivoComoDataURL(archivo, maxMB){
-  return new Promise((resolve, reject)=>{
-    if(archivo.size > maxMB*1024*1024){
-      reject(new Error(`Este archivo pesa más de ${maxMB}MB. Usa uno más liviano.`));
-      return;
-    }
-    const lector = new FileReader();
-    lector.onerror = ()=> reject(new Error('No se pudo leer el archivo'));
-    lector.onload = (e)=> resolve(e.target.result);
-    lector.readAsDataURL(archivo);
-  });
-}
-
 async function previsualizarImagen(event, previewId){
   const archivo = event.target.files[0];
   if(!archivo) return;
@@ -3035,18 +2612,13 @@ function renderGaleriaPromos(){
     card.innerHTML = `
       ${p.imagen
         ? `<img class="img-promo" src="${p.imagen}" alt="${escapeHtml(p.empresa||'')}" loading="lazy">`
-        : (p.video ? `<video class="img-promo" src="${p.video}" muted></video>` : `<div class="img-promo-placeholder">🎁</div>`)
+        : `<div class="img-promo-placeholder">🎁</div>`
       }
-      ${(p.video || p.archivo) ? `<div style="position:absolute; top:10px; right:10px; display:flex; gap:6px; z-index:2;">
-        ${p.video ? '<span style="background:rgba(0,0,0,0.55);color:#fff;font-size:11px;padding:3px 7px;border-radius:6px;">🎬 Video</span>' : ''}
-        ${p.archivo ? '<span style="background:rgba(0,0,0,0.55);color:#fff;font-size:11px;padding:3px 7px;border-radius:6px;">📎 Archivo</span>' : ''}
-      </div>` : ''}
       <div class="info-promo">
         ${p.categoria ? `<span class="tag-cat-promo">${escapeHtml(p.categoria)}</span>` : ''}
         <p class="empresa-promo">${escapeHtml(p.empresa||'')}</p>
       </div>
     `;
-    card.style.position = 'relative';
     grid.appendChild(card);
   });
 }
@@ -3057,18 +2629,6 @@ function abrirDetallePromo(promoId){
   const imgEl = document.getElementById('promoDetalleImg');
   if(p.imagen){ imgEl.src = p.imagen; imgEl.style.display='block'; }
   else { imgEl.style.display='none'; }
-  const videoEl = document.getElementById('promoDetalleVideo');
-  if(p.video){ videoEl.src = p.video; videoEl.style.display='block'; }
-  else { videoEl.src=''; videoEl.style.display='none'; }
-  const archivoEl = document.getElementById('promoDetalleArchivo');
-  if(p.archivo){
-    archivoEl.href = p.archivo;
-    archivoEl.download = p.archivoNombre || 'archivo';
-    archivoEl.textContent = '📎 Descargar ' + (p.archivoNombre || 'archivo');
-    archivoEl.style.display = 'inline-block';
-  } else {
-    archivoEl.style.display = 'none';
-  }
   document.getElementById('promoDetalleCat').textContent = p.categoria || 'Promo del mes';
   document.getElementById('promoDetalleEmpresa').textContent = p.empresa || '';
   document.getElementById('modalPromoDetalleOverlay').classList.add('activo');
@@ -3096,7 +2656,7 @@ function renderListaPromosAdmin(){
       }
       <div class="texto">
         <strong>${escapeHtml(p.empresa||'Sin nombre')}</strong>
-        <span>${escapeHtml(p.categoria||'Sin categoría')} ${p.video?' · 🎬':''}${p.archivo?' · 📎':''}</span>
+        <span>${escapeHtml(p.categoria||'Sin categoría')}</span>
       </div>
       <div class="acciones">
         <button class="icon-btn" title="Editar" onclick="editarPromo('${p.id}')">✏️</button>
@@ -3113,16 +2673,8 @@ function abrirFormPromo(id){
   document.getElementById('promoCat').value = '';
   document.getElementById('promoImagenPreview').src = '';
   document.getElementById('promoImagenPreview').classList.remove('mostrar');
-  document.getElementById('promoVideoInput').value = '';
-  document.getElementById('promoVideoPreview').style.display = 'none';
-  document.getElementById('promoVideoQuitar').style.display = 'none';
-  document.getElementById('promoArchivoInput').value = '';
-  document.getElementById('promoArchivoChip').style.display = 'none';
   document.getElementById('formPromoTitulo').textContent = id ? 'Editar promo' : 'Nueva promo del mes';
   imagenTemporalPromo = null;
-  videoTemporalPromo = null;
-  archivoTemporalPromo = null;
-  archivoTemporalPromoNombre = null;
   if(id){
     const p = promos.find(x=>x.id===id);
     if(p){
@@ -3133,18 +2685,6 @@ function abrirFormPromo(id){
         document.getElementById('promoImagenPreview').src = p.imagen;
         document.getElementById('promoImagenPreview').classList.add('mostrar');
       }
-      if(p.video){
-        videoTemporalPromo = p.video;
-        document.getElementById('promoVideoPreview').src = p.video;
-        document.getElementById('promoVideoPreview').style.display = 'block';
-        document.getElementById('promoVideoQuitar').style.display = 'inline-block';
-      }
-      if(p.archivo){
-        archivoTemporalPromo = p.archivo;
-        archivoTemporalPromoNombre = p.archivoNombre || 'archivo';
-        document.getElementById('promoArchivoNombre').textContent = archivoTemporalPromoNombre;
-        document.getElementById('promoArchivoChip').style.display = 'block';
-      }
     }
   }
   document.getElementById('formPromoOverlay').classList.add('activo');
@@ -3153,9 +2693,6 @@ function abrirFormPromo(id){
 function cerrarFormPromo(){
   document.getElementById('formPromoOverlay').classList.remove('activo');
   imagenTemporalPromo = null;
-  videoTemporalPromo = null;
-  archivoTemporalPromo = null;
-  archivoTemporalPromoNombre = null;
 }
 
 function editarPromo(id){ abrirFormPromo(id); }
@@ -3165,31 +2702,9 @@ async function guardarPromo(){
   const empresa = document.getElementById('promoEmpresa').value.trim();
   const categoria = document.getElementById('promoCat').value.trim();
   if(!empresa){ mostrarAviso('Escribe el nombre de la empresa'); return; }
-  if(!imagenTemporalPromo && !videoTemporalPromo && !archivoTemporalPromo){
-    mostrarAviso('Sube al menos una imagen, video o archivo para la promo');
-    return;
-  }
+  if(!imagenTemporalPromo){ mostrarAviso('Sube una imagen para la promo'); return; }
 
-  let imagenUrl, videoUrl, archivoUrl;
-  try{
-    [imagenUrl, videoUrl, archivoUrl] = await Promise.all([
-      subirComoStorage(imagenTemporalPromo, 'promos/imagenes'),
-      subirComoStorage(videoTemporalPromo, 'promos/videos'),
-      subirComoStorage(archivoTemporalPromo, 'promos/archivos'),
-    ]);
-  }catch(err){
-    console.error('Error subiendo archivos de la promo:', err);
-    mostrarAviso('⚠ No se pudo subir el video/archivo. Intenta de nuevo.');
-    return;
-  }
-
-  const obj = {
-    id: id || generarId('promo'), empresa, categoria,
-    imagen: imagenUrl,
-    video: videoUrl,
-    archivo: archivoUrl,
-    archivoNombre: archivoTemporalPromoNombre,
-  };
+  const obj = { id: id || generarId('promo'), empresa, categoria, imagen: imagenTemporalPromo };
 
   if(id){
     const idx = promos.findIndex(x=>x.id===id);
@@ -3206,8 +2721,6 @@ async function guardarPromo(){
 
 function eliminarPromo(id){
   if(!confirm('¿Eliminar esta promo del mes?')) return;
-  const p = promos.find(x=>x.id===id);
-  if(p){ borrarDeStorage(p.imagen); borrarDeStorage(p.video); borrarDeStorage(p.archivo); }
   promos = promos.filter(p=>p.id!==id);
   guardarPromos();
   renderListaPromosAdmin();
@@ -3405,49 +2918,6 @@ async function previsualizarPromo(event){
   imagenTemporalPromo = dataUrl;
 }
 
-async function previsualizarPromoVideo(event){
-  const archivo = event.target.files[0];
-  if(!archivo) return;
-  try{
-    const dataUrl = await leerArchivoComoDataURL(archivo, 20);
-    videoTemporalPromo = dataUrl;
-    const preview = document.getElementById('promoVideoPreview');
-    preview.src = dataUrl;
-    preview.style.display = 'block';
-    document.getElementById('promoVideoQuitar').style.display = 'inline-block';
-  }catch(err){
-    mostrarAviso(err.message || 'No se pudo cargar el video.');
-    event.target.value = '';
-  }
-}
-function quitarPromoVideo(){
-  videoTemporalPromo = null;
-  document.getElementById('promoVideoInput').value = '';
-  document.getElementById('promoVideoPreview').style.display = 'none';
-  document.getElementById('promoVideoQuitar').style.display = 'none';
-}
-
-async function previsualizarPromoArchivo(event){
-  const archivo = event.target.files[0];
-  if(!archivo) return;
-  try{
-    const dataUrl = await leerArchivoComoDataURL(archivo, 15);
-    archivoTemporalPromo = dataUrl;
-    archivoTemporalPromoNombre = archivo.name;
-    document.getElementById('promoArchivoNombre').textContent = archivo.name;
-    document.getElementById('promoArchivoChip').style.display = 'block';
-  }catch(err){
-    mostrarAviso(err.message || 'No se pudo cargar el archivo.');
-    event.target.value = '';
-  }
-}
-function quitarPromoArchivo(){
-  archivoTemporalPromo = null;
-  archivoTemporalPromoNombre = null;
-  document.getElementById('promoArchivoInput').value = '';
-  document.getElementById('promoArchivoChip').style.display = 'none';
-}
-
 // Compresor de alta calidad (para promos)
 function comprimirImagenAltaCalidad(archivo, anchoMaximo, calidad){
   return new Promise((resolve, reject)=>{
@@ -3520,23 +2990,13 @@ async function previsualizarAnuncioAdmin(event){
 
 async function guardarAnuncio(){
   if(!imagenTemporalAnuncio){ mostrarAviso('Selecciona una imagen primero.'); return; }
-  let imagenUrl;
-  try{
-    imagenUrl = await subirComoStorage(imagenTemporalAnuncio, 'anuncio');
-  }catch(err){
-    console.error('Error subiendo el anuncio:', err);
-    mostrarAviso('⚠ No se pudo subir la imagen. Intenta de nuevo.');
-    return;
-  }
-  await fbSet(CLAVE_ANUNCIO, { imagen: imagenUrl });
-  actualizarPanelAnuncioAdmin(imagenUrl);
+  await fbSet(CLAVE_ANUNCIO, { imagen: imagenTemporalAnuncio });
+  actualizarPanelAnuncioAdmin(imagenTemporalAnuncio);
   mostrarAviso('Anuncio publicado ✓');
 }
 
 async function quitarAnuncio(){
   if(!confirm('¿Quitar el anuncio? Ya no aparecerá el popup al abrir la página.')) return;
-  const anuncioActual = await fbGet(CLAVE_ANUNCIO);
-  if(anuncioActual && anuncioActual.imagen) borrarDeStorage(anuncioActual.imagen);
   await fbDel(CLAVE_ANUNCIO);
   imagenTemporalAnuncio = null;
   document.getElementById('anuncioAdminPreview').src = '';
@@ -3576,190 +3036,7 @@ function actualizarPanelAnuncioAdmin(img){
   }
 }
 
-// =============================================
-// TRIVIA DEL MES · GÁNATE UN PREMIO
-// =============================================
-const TRIVIA_DEFAULT = { activo:false, titulo:'Trivia del Mes · ¡Gánate un premio!', descripcion:'', link:'', imagen:null, video:null, archivo:null, archivoNombre:null };
-let trivia = {...TRIVIA_DEFAULT};
-let imagenTemporalTrivia = null;
-let videoTemporalTrivia = null;
-let archivoTemporalTrivia = null;
-let archivoTemporalTriviaNombre = null;
-
-function guardarTriviaEnFirebase(){
-  return fbSet('trivia', trivia);
-}
-
-async function previsualizarTriviaImagen(event){
-  const archivo = event.target.files[0];
-  if(!archivo) return;
-  if(archivo.size > 20*1024*1024){
-    mostrarAviso('La imagen es muy pesada (máx. 20MB). Usa una más liviana.');
-    event.target.value = '';
-    return;
-  }
-  const preview = document.getElementById('triviaImagenPreview');
-  let dataUrl;
-  try{
-    dataUrl = await comprimirImagenAltaCalidad(archivo, 1200, 0.88);
-  }catch(err){
-    try{ dataUrl = await leerImagenSinComprimir(archivo); }
-    catch(e){ mostrarAviso('No se pudo cargar la imagen.'); event.target.value=''; return; }
-  }
-  if(!dataUrl || dataUrl==='data:,'){ mostrarAviso('No se pudo procesar la imagen.'); event.target.value=''; return; }
-  preview.src = dataUrl;
-  preview.classList.add('mostrar');
-  imagenTemporalTrivia = dataUrl;
-}
-
-async function previsualizarTriviaVideo(event){
-  const archivo = event.target.files[0];
-  if(!archivo) return;
-  try{
-    const dataUrl = await leerArchivoComoDataURL(archivo, 20);
-    videoTemporalTrivia = dataUrl;
-    const preview = document.getElementById('triviaVideoPreview');
-    preview.src = dataUrl;
-    preview.style.display = 'block';
-    document.getElementById('triviaVideoQuitar').style.display = 'inline-block';
-  }catch(err){
-    mostrarAviso(err.message || 'No se pudo cargar el video.');
-    event.target.value = '';
-  }
-}
-function quitarTriviaVideo(){
-  videoTemporalTrivia = null;
-  document.getElementById('triviaVideoInput').value = '';
-  document.getElementById('triviaVideoPreview').style.display = 'none';
-  document.getElementById('triviaVideoQuitar').style.display = 'none';
-}
-
-async function previsualizarTriviaArchivo(event){
-  const archivo = event.target.files[0];
-  if(!archivo) return;
-  try{
-    const dataUrl = await leerArchivoComoDataURL(archivo, 15);
-    archivoTemporalTrivia = dataUrl;
-    archivoTemporalTriviaNombre = archivo.name;
-    document.getElementById('triviaArchivoNombre').textContent = archivo.name;
-    document.getElementById('triviaArchivoChip').style.display = 'block';
-  }catch(err){
-    mostrarAviso(err.message || 'No se pudo cargar el archivo.');
-    event.target.value = '';
-  }
-}
-function quitarTriviaArchivo(){
-  archivoTemporalTrivia = null;
-  archivoTemporalTriviaNombre = null;
-  document.getElementById('triviaArchivoInput').value = '';
-  document.getElementById('triviaArchivoChip').style.display = 'none';
-}
-
-async function cargarPanelTriviaAdmin(){
-  const raw = await fbGet('trivia');
-  trivia = raw || {...TRIVIA_DEFAULT};
-  document.getElementById('triviaActivo').checked = !!trivia.activo;
-  document.getElementById('triviaTitulo').value = trivia.titulo || TRIVIA_DEFAULT.titulo;
-  document.getElementById('triviaDescripcion').value = trivia.descripcion || '';
-  document.getElementById('triviaLink').value = trivia.link || '';
-
-  imagenTemporalTrivia = trivia.imagen || null;
-  document.getElementById('triviaImagenPreview').src = trivia.imagen || '';
-  document.getElementById('triviaImagenPreview').classList.toggle('mostrar', !!trivia.imagen);
-  document.getElementById('triviaImagenInput').value = '';
-
-  videoTemporalTrivia = trivia.video || null;
-  document.getElementById('triviaVideoInput').value = '';
-  if(trivia.video){
-    document.getElementById('triviaVideoPreview').src = trivia.video;
-    document.getElementById('triviaVideoPreview').style.display = 'block';
-    document.getElementById('triviaVideoQuitar').style.display = 'inline-block';
-  }else{
-    document.getElementById('triviaVideoPreview').style.display = 'none';
-    document.getElementById('triviaVideoQuitar').style.display = 'none';
-  }
-
-  archivoTemporalTrivia = trivia.archivo || null;
-  archivoTemporalTriviaNombre = trivia.archivoNombre || null;
-  document.getElementById('triviaArchivoInput').value = '';
-  if(trivia.archivo){
-    document.getElementById('triviaArchivoNombre').textContent = trivia.archivoNombre || 'archivo';
-    document.getElementById('triviaArchivoChip').style.display = 'block';
-  }else{
-    document.getElementById('triviaArchivoChip').style.display = 'none';
-  }
-}
-
-async function guardarTriviaForm(){
-  let imagenUrl, videoUrl, archivoUrl;
-  try{
-    [imagenUrl, videoUrl, archivoUrl] = await Promise.all([
-      subirComoStorage(imagenTemporalTrivia, 'trivia/imagenes'),
-      subirComoStorage(videoTemporalTrivia, 'trivia/videos'),
-      subirComoStorage(archivoTemporalTrivia, 'trivia/archivos'),
-    ]);
-  }catch(err){
-    console.error('Error subiendo archivos de la trivia:', err);
-    mostrarAviso('⚠ No se pudo subir el video/archivo. Intenta de nuevo.');
-    return;
-  }
-  trivia = {
-    activo: document.getElementById('triviaActivo').checked,
-    titulo: document.getElementById('triviaTitulo').value.trim() || TRIVIA_DEFAULT.titulo,
-    descripcion: document.getElementById('triviaDescripcion').value.trim(),
-    link: document.getElementById('triviaLink').value.trim(),
-    imagen: imagenUrl,
-    video: videoUrl,
-    archivo: archivoUrl,
-    archivoNombre: archivoTemporalTriviaNombre,
-  };
-  await guardarTriviaEnFirebase();
-  renderPortada();
-  mostrarAviso(trivia.activo ? 'Trivia guardada y visible para los colaboradores ✓' : 'Trivia guardada (aún oculta para colaboradores)');
-}
-
-async function quitarTrivia(){
-  if(!confirm('¿Borrar por completo la sección de Trivia del Mes?')) return;
-  borrarDeStorage(trivia.imagen); borrarDeStorage(trivia.video); borrarDeStorage(trivia.archivo);
-  trivia = {...TRIVIA_DEFAULT};
-  await fbDel('trivia');
-  await cargarPanelTriviaAdmin();
-  renderPortada();
-  mostrarAviso('Trivia eliminada');
-}
-
-function abrirTrivia(){
-  if(!trivia || (!trivia.activo && !modoEdicion)) return;
-  trackTrivia();
-  const imgEl = document.getElementById('triviaDetalleImg');
-  if(trivia.imagen){ imgEl.src = trivia.imagen; imgEl.style.display='block'; } else { imgEl.style.display='none'; }
-  const videoEl = document.getElementById('triviaDetalleVideo');
-  if(trivia.video){ videoEl.src = trivia.video; videoEl.style.display='block'; } else { videoEl.src=''; videoEl.style.display='none'; }
-  document.getElementById('triviaDetalleTitulo').textContent = trivia.titulo || TRIVIA_DEFAULT.titulo;
-  document.getElementById('triviaDetalleDescripcion').textContent = trivia.descripcion || '';
-  const linkEl = document.getElementById('triviaDetalleLink');
-  if(trivia.link){ linkEl.href = trivia.link; linkEl.style.display = 'inline-block'; } else { linkEl.style.display = 'none'; }
-  const archEl = document.getElementById('triviaDetalleArchivo');
-  if(trivia.archivo){
-    archEl.href = trivia.archivo;
-    archEl.download = trivia.archivoNombre || 'archivo';
-    archEl.textContent = '📎 Descargar ' + (trivia.archivoNombre || 'archivo');
-    archEl.style.display = 'inline-block';
-  } else {
-    archEl.style.display = 'none';
-  }
-  document.getElementById('modalTriviaOverlay').classList.add('activo');
-}
-function cerrarTrivia(){
-  document.getElementById('modalTriviaOverlay').classList.remove('activo');
-}
-async function trackTrivia(){
-  if(modoEdicion || esDispositivoAdmin()) return;
-  await fbIncrementar('analytics/triviaVistas');
-}
-
 cargarDatos();
-registrarVisita();
 restaurarModoEdicionSiAplica();
 </script>
 </body>
