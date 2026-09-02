@@ -1287,7 +1287,8 @@
    ========================================================= */
 
 let categorias = [];
-let convenios = [];
+let convenios = []; // solo los ya descargados (por categoría abierta, o todos si abriste el panel admin)
+let conveniosMeta = []; // índice liviano: {id, categoriaId, publicado} de TODOS los convenios, sin imágenes
 let promos = [];
 let contactos = [];
 let imagenTemporalCat = null;
@@ -1589,10 +1590,16 @@ async function renderEstadisticas(){
 async function cargarDatos(){
   document.getElementById('cargandoOverlay').style.display = 'flex';
   try{
-    // Leer todo de Firebase en paralelo
-    const [rawCat, rawIdx, rawTex, rawPromos, rawAnuncio, rawContactos] = await Promise.all([
+    // Leer todo de Firebase en paralelo. Los convenios completos (con sus
+    // imágenes) YA NO se descargan aquí — eso es lo que hacía lenta la
+    // apertura de la página. Solo bajamos un índice liviano (conveniosMeta:
+    // id + categoría + publicado, sin imágenes) para poder mostrar el
+    // conteo de "X convenios" en cada categoría; el contenido real de cada
+    // convenio se descarga hasta que abres esa categoría.
+    const [rawCat, rawIdx, rawMeta, rawTex, rawPromos, rawAnuncio, rawContactos] = await Promise.all([
       fbGet('categorias'),
       fbGet('conveniosIdx'),
+      fbGet('conveniosMeta'),
       fbGet('textos'),
       fbGet('promos'),
       fbGet(CLAVE_ANUNCIO),
@@ -1608,13 +1615,23 @@ async function cargarDatos(){
       await fbSet('categorias', categorias);
     }
 
-    // Convenios
+    // Convenios: índice liviano (sin imágenes). Si la página todavía no
+    // tiene este índice guardado (primera carga tras esta actualización),
+    // lo construimos una única vez a partir de los convenios completos —
+    // esa sola vez sí baja todo, pero las siguientes cargas de cualquier
+    // persona ya solo usan el índice liviano.
     const idsArr = rawIdx || [];
     convenios = [];
-    if(idsArr.length > 0){
+    if(rawMeta && Array.isArray(rawMeta) && rawMeta.length === idsArr.length){
+      conveniosMeta = rawMeta;
+    } else if(idsArr.length > 0){
       const convPromises = idsArr.map(id => fbGet('convenios/' + id));
       const convResults = await Promise.all(convPromises);
       convResults.forEach(c => { if(c) convenios.push(c); });
+      conveniosMeta = convenios.map(c => ({ id: c.id, categoriaId: c.categoriaId, publicado: c.publicado }));
+      fbSet('conveniosMeta', conveniosMeta); // no bloqueamos la carga esperando esto
+    } else {
+      conveniosMeta = [];
     }
 
     // Textos
@@ -1668,6 +1685,11 @@ async function guardarUnConvenio(conv){
   const ids = convenios.map(c=>c.id);
   if(!ids.includes(conv.id)) ids.push(conv.id);
   await fbSet('conveniosIdx', ids);
+  // Índice liviano (para conteos por categoría) sin necesidad de bajar
+  // todos los convenios completos en cada carga de la página.
+  const metaSinEste = conveniosMeta.filter(m=>m.id!==conv.id);
+  conveniosMeta = [...metaSinEste, { id: conv.id, categoriaId: conv.categoriaId, publicado: conv.publicado }];
+  await fbSet('conveniosMeta', conveniosMeta);
   lsSet(PREFIJO_CONVENIO+conv.id, JSON.stringify(conv));
   lsSet(CLAVE_CONVENIOS_INDICE, JSON.stringify(ids));
 }
@@ -1676,6 +1698,8 @@ function eliminarUnConvenioDeStorage(convId){
   fbDel('convenios/' + convId);
   const ids = convenios.filter(c=>c.id!==convId).map(c=>c.id);
   fbSet('conveniosIdx', ids);
+  conveniosMeta = conveniosMeta.filter(m=>m.id!==convId);
+  fbSet('conveniosMeta', conveniosMeta);
   lsDel(PREFIJO_CONVENIO+convId);
   lsSet(CLAVE_CONVENIOS_INDICE, JSON.stringify(ids));
 }
@@ -1712,7 +1736,7 @@ function renderPortada(){
   const categoriasVisibles = modoEdicion ? categorias : categorias.filter(c=>c.publicado !== false);
   categoriasVisibles.forEach(cat=>{
     const esBorrador = modoEdicion && cat.publicado === false;
-    const cantidad = convenios.filter(c=>c.categoriaId===cat.id && (modoEdicion || c.publicado !== false)).length;
+    const cantidad = conveniosMeta.filter(c=>c.categoriaId===cat.id && (modoEdicion || c.publicado !== false)).length;
     const card = document.createElement('div');
     card.className = 'cat-card' + (esBorrador ? ' es-borrador' : '');
     card.onclick = ()=> abrirCategoria(cat.id);
@@ -1740,7 +1764,18 @@ function irAPortada(){
 /* =========================================================
    RENDER: VISTA CATEGORÍA (grid de convenios)
    ========================================================= */
-function abrirCategoria(catId){
+// Descarga (si hace falta) los convenios completos —con su imagen— que
+// todavía no tenemos en memoria. Se usa tanto al abrir una categoría (solo
+// los de esa categoría) como al abrir el panel de administración de
+// Convenios (ahí sí se necesitan todos, para poder editar cualquiera).
+async function asegurarConveniosCargados(ids){
+  const faltantes = ids.filter(id => !convenios.some(c => c.id === id));
+  if(faltantes.length === 0) return;
+  const resultados = await Promise.all(faltantes.map(id => fbGet('convenios/' + id)));
+  resultados.forEach(c => { if(c) convenios.push(c); });
+}
+
+async function abrirCategoria(catId){
   const cat = categorias.find(c=>c.id===catId);
   if(!cat) return;
   if(cat.publicado===false && !modoEdicion) return; // categoría en borrador: no accesible para visitantes
@@ -1763,6 +1798,17 @@ function abrirCategoria(catId){
   // demás categorías se oculta la barra de filtros.
   const esHospedaje = (cat.nombre || '').trim().toLowerCase() === 'hospedaje';
   document.getElementById('filtrosConvenios').style.display = esHospedaje ? 'flex' : 'none';
+
+  // Solo se descargan (con su imagen) los convenios de ESTA categoría — no
+  // los de las demás — así que abrir cualquier categoría es rápido sin
+  // importar cuántas otras haya en la página.
+  const idsDeLaCategoria = conveniosMeta.filter(m=>m.categoriaId===catId).map(m=>m.id);
+  const grid = document.getElementById('gridConvenios');
+  const faltanConvenios = idsDeLaCategoria.some(id => !convenios.some(c=>c.id===id));
+  if(faltanConvenios){
+    grid.innerHTML = `<div style="grid-column:1/-1;"><div class="estado-vacio"><span class="emoji">⏳</span>Cargando convenios…</div></div>`;
+  }
+  await asegurarConveniosCargados(idsDeLaCategoria);
 
   renderConvenios(catId);
   window.scrollTo({top:0, behavior:'smooth'});
@@ -1988,7 +2034,11 @@ function abrirAdmin(){
   document.getElementById('adminOverlay').classList.add('activo');
   renderListaCategoriasAdmin();
   popularSelectsCategoria();
-  renderListaConveniosAdmin();
+  // El panel de administración de Convenios sí necesita todos (para poder
+  // editar cualquiera); esto solo pasa cuando TÚ abres el panel, nunca en
+  // la página pública.
+  document.getElementById('listaConveniosAdmin').innerHTML = `<div class="estado-vacio"><span class="emoji">⏳</span>Cargando convenios…</div>`;
+  asegurarConveniosCargados(conveniosMeta.map(m=>m.id)).then(renderListaConveniosAdmin);
 }
 function cerrarAdmin(){
   document.getElementById('adminOverlay').classList.remove('activo');
@@ -2046,7 +2096,7 @@ function renderListaCategoriasAdmin(){
     return;
   }
   categorias.forEach(cat=>{
-    const cantidad = convenios.filter(c=>c.categoriaId===cat.id).length;
+    const cantidad = conveniosMeta.filter(c=>c.categoriaId===cat.id).length;
     const estaPublicada = cat.publicado !== false;
     const fila = document.createElement('div');
     fila.className = 'lista-admin-item';
@@ -2263,7 +2313,7 @@ async function guardarCategoria(){
 }
 
 async function eliminarCategoria(catId){
-  const cantidad = convenios.filter(c=>c.categoriaId===catId).length;
+  const cantidad = conveniosMeta.filter(c=>c.categoriaId===catId).length;
   const msg = cantidad>0
     ? `Esta categoría tiene ${cantidad} convenio(s). Si la eliminas, esos convenios quedarán sin categoría visible. ¿Eliminar de todas formas?`
     : '¿Eliminar esta categoría?';
@@ -2532,7 +2582,10 @@ function resetearTextos(){
 /* =========================================================
    EXPORTAR / IMPORTAR DATOS (respaldo)
    ========================================================= */
-function exportarDatos(){
+async function exportarDatos(){
+  // Por si se exporta justo al abrir el panel, antes de que termine de
+  // llegar la lista completa de convenios.
+  await asegurarConveniosCargados(conveniosMeta.map(m=>m.id));
   const respaldo = {
     version: 1,
     fecha: new Date().toISOString(),
