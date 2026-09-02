@@ -1622,7 +1622,11 @@ async function cargarDatos(){
     // persona ya solo usan el índice liviano.
     const idsArr = rawIdx || [];
     convenios = [];
-    if(rawMeta && Array.isArray(rawMeta) && rawMeta.length === idsArr.length){
+    if(rawMeta && Array.isArray(rawMeta)){
+      // Ya existe el índice ligero: lo usamos tal cual, sin exigir que
+      // coincida al 100% con conveniosIdx (antes esa exigencia era el bug:
+      // cualquier pequeño desajuste hacía que SIEMPRE se bajaran todos los
+      // convenios completos de nuevo, en cada carga de la portada).
       conveniosMeta = rawMeta;
     } else if(idsArr.length > 0){
       const convPromises = idsArr.map(id => fbGet('convenios/' + id));
