@@ -411,7 +411,7 @@
     background:none; border:none; color:#fff; font-size:20px; cursor:pointer; opacity:0.8;
   }
   .admin-body{ padding: 24px 26px 28px; }
-  .admin-tabs{ display:flex; gap:8px; margin-bottom:20px; }
+  .admin-tabs{ display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
   .admin-tab{
     flex:1; text-align:center; padding:9px 0; border-radius:10px; font-size:13px; font-weight:700;
     background: var(--gris-claro); color: var(--gris); cursor:pointer; border:none;
@@ -518,6 +518,20 @@
   .lista-admin-item .texto strong{ display:block; font-size:14px; }
   .lista-admin-item .texto span{ font-size:12px; color: var(--gris); }
   .lista-admin-item .acciones{ display:flex; gap:6px; }
+
+  /* ---------- ESTADÍSTICAS (panel admin, solo tú) ---------- */
+  .stats-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); gap:10px; margin-bottom:22px; }
+  .stats-card{ background: var(--gris-claro); border-radius: 12px; padding: 14px 12px; text-align:center; }
+  .stats-card .num{ font-size:22px; font-weight:900; color: var(--azul-mas-osc); line-height:1.1; }
+  .stats-card .lbl{ font-size:11px; color:#6B7280; margin-top:4px; font-weight:600; }
+  .stats-seccion{ margin-bottom:22px; }
+  .stats-seccion h4{ font-size:13px; margin:0 0 10px; color:var(--azul-mas-osc); }
+  .stats-rank-row{ display:flex; align-items:center; gap:10px; margin-bottom:8px; font-size:12.5px; }
+  .stats-rank-row .rank-label{ width:150px; flex-shrink:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#333; }
+  .stats-rank-row .rank-bar-track{ flex:1; background:#e8ecf2; border-radius:6px; height:14px; overflow:hidden; }
+  .stats-rank-row .rank-bar-fill{ background: linear-gradient(90deg, var(--azul), var(--amarillo)); height:100%; border-radius:6px; }
+  .stats-rank-row .rank-num{ width:34px; text-align:right; flex-shrink:0; font-weight:700; color:var(--azul-mas-osc); }
+  .stats-vacio{ font-size:12.5px; color:#9aa4b2; font-style:italic; }
   .icon-btn{
     background: var(--gris-claro); border:none; width:32px; height:32px; border-radius:8px;
     cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center;
@@ -740,7 +754,7 @@
   }
   #anuncioBox{
     position:relative;
-    max-width:600px; width:100%;
+    max-width:780px; width:100%;
     border-radius:20px; overflow:hidden;
     box-shadow: 0 30px 70px rgba(0,0,0,0.5);
     animation: popupEntrada 0.35s cubic-bezier(0.34,1.56,0.64,1);
@@ -750,7 +764,7 @@
     to{ transform:scale(1); opacity:1; }
   }
   #anuncioImg{
-    display:block; width:100%; max-height:85vh;
+    display:block; width:100%; max-height:90vh;
     object-fit:contain; border-radius:20px;
     background:#000;
   }
@@ -943,6 +957,7 @@
         <button class="admin-tab" id="tabAnuncio" onclick="cambiarTabAdmin('anuncio')">Anuncio</button>
         <button class="admin-tab" id="tabContacto" onclick="cambiarTabAdmin('contacto')">Contacto</button>
         <button class="admin-tab" id="tabTextos" onclick="cambiarTabAdmin('textos')">Textos</button>
+        <button class="admin-tab" id="tabEstadisticas" onclick="cambiarTabAdmin('estadisticas')">📊 Estadísticas</button>
       </div>
 
       <!-- TAB CATEGORÍAS -->
@@ -1028,6 +1043,16 @@
           <button class="btn-secundario" onclick="resetearTextos()">Restaurar original</button>
           <button class="btn-primario" onclick="guardarTextos()">Guardar textos</button>
         </div>
+      </div>
+
+      <!-- TAB ESTADÍSTICAS (solo visible para ti, autenticado) -->
+      <div id="panelEstadisticas" style="display:none;">
+        <p style="font-size:13px;color:#6B7280;margin:0 0 16px;">
+          Tráfico y uso de la página. Solo tú puedes ver esta información: se muestra únicamente
+          dentro del panel de administrador, con tu sesión iniciada.
+        </p>
+        <div id="estadisticasContenido">Cargando estadísticas…</div>
+        <button class="btn-secundario" style="margin-top:14px; width:100%;" onclick="renderEstadisticas()">🔄 Actualizar</button>
       </div>
     </div>
   </div>
@@ -1389,6 +1414,177 @@ function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; 
 function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 function lsDel(k){ try{ localStorage.removeItem(k); }catch(e){} }
 
+/* =========================================================
+   ANALÍTICA — tráfico y uso de la página (solo visible para
+   ti, dentro del panel de administrador con tu sesión iniciada).
+   Los visitantes normales nunca ven esta información: no hay
+   ningún botón, texto ni pantalla en el modo lectura que la
+   muestre; vive únicamente dentro del panel ⚙ Administrar.
+   ========================================================= */
+function hoyISO(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function idVisitanteLocal(){
+  let id = lsGet('bama:deviceId');
+  if(!id){
+    id = 'v_' + Date.now() + '_' + Math.random().toString(36).slice(2,10);
+    lsSet('bama:deviceId', id);
+  }
+  return id;
+}
+// Una vez que este navegador inició sesión de administrador (aunque sea una
+// sola vez), lo marcamos como "dispositivo admin" de forma permanente, para
+// que ninguna visita futura desde aquí se cuente en las estadísticas —
+// incluso si navegas en modo lectura, sin haber iniciado sesión ese día.
+function esDispositivoAdmin(){
+  return lsGet('bama:esAdmin') === '1';
+}
+async function fbIncrementar(path){
+  try{
+    const db = await initFirebase();
+    if(!db) return;
+    await db.ref(path).set(firebase.database.ServerValue.increment(1));
+  }catch(e){ console.warn('fbIncrementar error:', e); }
+}
+// Registra una visita a la página (una vez por carga). No identifica a la
+// persona: solo guarda un id aleatorio de dispositivo (para poder contar
+// visitantes distintos) y la fecha, nunca nombre, correo ni IP.
+// Localidad aproximada del visitante, a partir de su IP. No usa el GPS del
+// navegador ni pide permiso: es una estimación aproximada basada en un
+// servicio externo (ipapi.co), solo para saber desde qué localidades nos ven.
+async function obtenerUbicacionVisitante(){
+  try{
+    const resp = await fetch('https://ipapi.co/json/');
+    if(!resp.ok) return null;
+    const data = await resp.json();
+    if(data && data.city){
+      return { ciudad: data.city + (data.region ? ', ' + data.region : '') };
+    }
+    return null;
+  }catch(e){ return null; }
+}
+
+async function registrarVisita(){
+  if(esDispositivoAdmin()) return; // tus propias visitas nunca se cuentan
+  try{
+    const idv = idVisitanteLocal();
+    const dia = hoyISO();
+    await fbIncrementar('analytics/visitasTotal');
+    await fbIncrementar('analytics/visitasPorDia/' + dia);
+    await fbSet('analytics/visitantesUnicos/' + idv, true);
+    await fbSet('analytics/ultimaVisita', Date.now());
+
+    const ubicacion = await obtenerUbicacionVisitante();
+    if(ubicacion && ubicacion.ciudad){
+      await fbIncrementar('analytics/ciudades/' + ubicacion.ciudad.replace(/[.#$/\[\]]/g, ''));
+    }
+  }catch(e){ console.warn('registrarVisita error:', e); }
+}
+// Vista de una categoría. No se cuenta cuando tú navegas con tu sesión de
+// administrador activa, para que tus propias pruebas no distorsionen los
+// números reales de los colaboradores.
+async function trackCategoria(catId){
+  if(modoEdicion || esDispositivoAdmin()) return;
+  await fbIncrementar('analytics/categorias/' + catId);
+}
+// Vista de detalle de un convenio.
+async function trackConvenio(convId){
+  if(modoEdicion || esDispositivoAdmin()) return;
+  await fbIncrementar('analytics/convenios/' + convId);
+}
+// Interacciones generales (clics) dentro de la página, para poder calcular
+// "qué tan seguido interactúan" las personas por visita.
+async function trackInteraccion(){
+  if(modoEdicion || esDispositivoAdmin()) return;
+  await fbIncrementar('analytics/interaccionesTotal');
+  await fbIncrementar('analytics/interaccionesPorDia/' + hoyISO());
+}
+document.addEventListener('click', function(e){
+  if(modoEdicion || esDispositivoAdmin()) return;
+  // Ignora clics dentro del panel de administrador / candado / modal de clave
+  if(e.target.closest('#adminOverlay, #claveOverlay, #btnCandado, #btnAdministrar')) return;
+  trackInteraccion();
+}, true);
+
+async function renderEstadisticas(){
+  const cont = document.getElementById('estadisticasContenido');
+  cont.innerHTML = 'Cargando estadísticas…';
+  const datos = await fbGet('analytics') || {};
+
+  const visitasTotal = datos.visitasTotal || 0;
+  const interaccionesTotal = datos.interaccionesTotal || 0;
+  const visitantesUnicos = datos.visitantesUnicos ? Object.keys(datos.visitantesUnicos).length : 0;
+  const promedioInteraccionesPorVisita = visitasTotal>0 ? (interaccionesTotal/visitasTotal).toFixed(1) : '0';
+
+  const catViews = datos.categorias || {};
+  const convViews = datos.convenios || {};
+  const porDia = datos.visitasPorDia || {};
+
+  const topCategorias = Object.entries(catViews)
+    .map(([id,vistas])=>({ id, vistas, nombre: (categorias.find(c=>c.id===id)||{}).nombre || id }))
+    .sort((a,b)=>b.vistas-a.vistas).slice(0,8);
+
+  const topConvenios = Object.entries(convViews)
+    .map(([id,vistas])=>({ id, vistas, nombre: (convenios.find(c=>c.id===id)||{}).empresa || id }))
+    .sort((a,b)=>b.vistas-a.vistas).slice(0,8);
+
+  const ultimos14 = [];
+  for(let i=13;i>=0;i--){
+    const d = new Date();
+    d.setDate(d.getDate()-i);
+    const key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    ultimos14.push({ dia: key.slice(5), vistas: porDia[key]||0 });
+  }
+  const maxDia = Math.max(1, ...ultimos14.map(d=>d.vistas));
+  const maxCat = Math.max(1, ...topCategorias.map(c=>c.vistas));
+  const maxConv = Math.max(1, ...topConvenios.map(c=>c.vistas));
+
+  const ciudadViews = datos.ciudades || {};
+  const topCiudades = Object.entries(ciudadViews)
+    .map(([nombre,vistas])=>({ nombre, vistas }))
+    .sort((a,b)=>b.vistas-a.vistas).slice(0,8);
+  const maxCiudad = Math.max(1, ...topCiudades.map(c=>c.vistas));
+
+  function filaBarra(label, valor, maxVal){
+    const pct = Math.round((valor/maxVal)*100);
+    return `<div class="stats-rank-row">
+      <span class="rank-label" title="${escapeHtml(String(label))}">${escapeHtml(String(label))}</span>
+      <span class="rank-bar-track"><span class="rank-bar-fill" style="width:${pct}%;"></span></span>
+      <span class="rank-num">${valor}</span>
+    </div>`;
+  }
+
+  cont.innerHTML = `
+    <div class="stats-grid">
+      <div class="stats-card"><div class="num">${visitasTotal}</div><div class="lbl">Visitas totales</div></div>
+      <div class="stats-card"><div class="num">${visitantesUnicos}</div><div class="lbl">Visitantes distintos</div></div>
+      <div class="stats-card"><div class="num">${interaccionesTotal}</div><div class="lbl">Interacciones totales</div></div>
+      <div class="stats-card"><div class="num">${promedioInteraccionesPorVisita}</div><div class="lbl">Interacciones / visita</div></div>
+    </div>
+
+    <div class="stats-seccion">
+      <h4>📅 Visitas — últimos 14 días</h4>
+      ${ultimos14.map(d=>filaBarra(d.dia, d.vistas, maxDia)).join('')}
+    </div>
+
+    <div class="stats-seccion">
+      <h4>🏷️ Categorías más vistas</h4>
+      ${topCategorias.length ? topCategorias.map(c=>filaBarra(c.nombre, c.vistas, maxCat)).join('') : '<p class="stats-vacio">Todavía no hay datos suficientes.</p>'}
+    </div>
+
+    <div class="stats-seccion">
+      <h4>🏢 Convenios más vistos</h4>
+      ${topConvenios.length ? topConvenios.map(c=>filaBarra(c.nombre, c.vistas, maxConv)).join('') : '<p class="stats-vacio">Todavía no hay datos suficientes.</p>'}
+    </div>
+
+    <div class="stats-seccion">
+      <h4>📍 Localidades desde donde nos ven</h4>
+      ${topCiudades.length ? topCiudades.map(c=>filaBarra(c.nombre, c.vistas, maxCiudad)).join('') : '<p class="stats-vacio">Todavía no hay datos suficientes.</p>'}
+    </div>
+  `;
+}
+
 async function cargarDatos(){
   document.getElementById('cargandoOverlay').style.display = 'flex';
   try{
@@ -1548,6 +1744,7 @@ function abrirCategoria(catId){
   if(!cat) return;
   if(cat.publicado===false && !modoEdicion) return; // categoría en borrador: no accesible para visitantes
   categoriaActivaId = catId;
+  trackCategoria(catId);
 
   document.getElementById('vistaPortada').classList.add('oculta');
   document.getElementById('vistaCategoria').classList.add('activa');
@@ -1559,6 +1756,12 @@ function abrirCategoria(catId){
 
   document.getElementById('buscarLugarConvenio').value = '';
   document.getElementById('ordenPrecioConvenio').value = '';
+
+  // El buscador por ciudad y el orden por precio solo tienen sentido en
+  // Hospedaje (es la única categoría con esos datos cargados). En las
+  // demás categorías se oculta la barra de filtros.
+  const esHospedaje = (cat.nombre || '').trim().toLowerCase() === 'hospedaje';
+  document.getElementById('filtrosConvenios').style.display = esHospedaje ? 'flex' : 'none';
 
   renderConvenios(catId);
   window.scrollTo({top:0, behavior:'smooth'});
@@ -1644,6 +1847,7 @@ function renderConvenios(catId){
 function abrirDetalleConvenio(convId){
   const conv = convenios.find(c=>c.id===convId);
   if(!conv) return;
+  trackConvenio(convId);
   const cat = categorias.find(c=>c.id===conv.categoriaId);
 
   const imgEl = document.getElementById('modalImg');
@@ -1740,6 +1944,7 @@ async function validarClaveEdicion(){
 }
 function activarModoEdicion(){
   modoEdicion = true;
+  lsSet('bama:esAdmin', '1');
   document.getElementById('btnAdministrar').style.display = 'inline-block';
   document.getElementById('btnCandado').textContent = '🔓';
   document.getElementById('btnCandado').classList.add('desbloqueado');
@@ -1794,18 +1999,21 @@ function cambiarTabAdmin(tab){
   const esAnuncio = tab==='anuncio';
   const esContacto = tab==='contacto';
   const esTxt = tab==='textos';
+  const esStats = tab==='estadisticas';
   document.getElementById('tabCategorias').classList.toggle('activo', esCat);
   document.getElementById('tabConvenios').classList.toggle('activo', esConv);
   document.getElementById('tabPromos').classList.toggle('activo', esPro);
   document.getElementById('tabAnuncio').classList.toggle('activo', esAnuncio);
   document.getElementById('tabContacto').classList.toggle('activo', esContacto);
   document.getElementById('tabTextos').classList.toggle('activo', esTxt);
+  document.getElementById('tabEstadisticas').classList.toggle('activo', esStats);
   document.getElementById('panelCategorias').style.display = esCat ? 'block':'none';
   document.getElementById('panelConvenios').style.display = esConv ? 'block':'none';
   document.getElementById('panelPromos').style.display = esPro ? 'block':'none';
   document.getElementById('panelAnuncio').style.display = esAnuncio ? 'block':'none';
   document.getElementById('panelContacto').style.display = esContacto ? 'block':'none';
   document.getElementById('panelTextos').style.display = esTxt ? 'block':'none';
+  document.getElementById('panelEstadisticas').style.display = esStats ? 'block':'none';
   if(esTxt){
     document.getElementById('textoEyebrow').value = textos.eyebrow || TEXTOS_DEFAULT.eyebrow;
     document.getElementById('textoTitulo').value = textos.titulo || TEXTOS_DEFAULT.titulo;
@@ -1817,6 +2025,7 @@ function cambiarTabAdmin(tab){
   if(esPro) renderListaPromosAdmin();
   if(esAnuncio) cargarPanelAnuncioAdmin();
   if(esContacto) renderListaContactosAdmin();
+  if(esStats) renderEstadisticas();
 }
 
 function popularSelectsCategoria(){
@@ -2612,13 +2821,18 @@ function renderGaleriaPromos(){
     card.innerHTML = `
       ${p.imagen
         ? `<img class="img-promo" src="${p.imagen}" alt="${escapeHtml(p.empresa||'')}" loading="lazy">`
-        : `<div class="img-promo-placeholder">🎁</div>`
+        : (p.video ? `<video class="img-promo" src="${p.video}" muted></video>` : `<div class="img-promo-placeholder">🎁</div>`)
       }
+      ${(p.video || p.archivo) ? `<div style="position:absolute; top:10px; right:10px; display:flex; gap:6px; z-index:2;">
+        ${p.video ? '<span style="background:rgba(0,0,0,0.55);color:#fff;font-size:11px;padding:3px 7px;border-radius:6px;">🎬 Video</span>' : ''}
+        ${p.archivo ? '<span style="background:rgba(0,0,0,0.55);color:#fff;font-size:11px;padding:3px 7px;border-radius:6px;">📎 Archivo</span>' : ''}
+      </div>` : ''}
       <div class="info-promo">
         ${p.categoria ? `<span class="tag-cat-promo">${escapeHtml(p.categoria)}</span>` : ''}
         <p class="empresa-promo">${escapeHtml(p.empresa||'')}</p>
       </div>
     `;
+    card.style.position = 'relative';
     grid.appendChild(card);
   });
 }
@@ -2702,9 +2916,15 @@ async function guardarPromo(){
   const empresa = document.getElementById('promoEmpresa').value.trim();
   const categoria = document.getElementById('promoCat').value.trim();
   if(!empresa){ mostrarAviso('Escribe el nombre de la empresa'); return; }
-  if(!imagenTemporalPromo){ mostrarAviso('Sube una imagen para la promo'); return; }
+  if(!imagenTemporalPromo){
+    mostrarAviso('Sube una imagen para la promo');
+    return;
+  }
 
-  const obj = { id: id || generarId('promo'), empresa, categoria, imagen: imagenTemporalPromo };
+  const obj = {
+    id: id || generarId('promo'), empresa, categoria,
+    imagen: imagenTemporalPromo,
+  };
 
   if(id){
     const idx = promos.findIndex(x=>x.id===id);
@@ -3037,6 +3257,7 @@ function actualizarPanelAnuncioAdmin(img){
 }
 
 cargarDatos();
+registrarVisita();
 restaurarModoEdicionSiAplica();
 </script>
 </body>
