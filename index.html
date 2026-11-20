@@ -390,6 +390,44 @@
   }
   .modal-detalle{ position:relative; }
 
+
+  /* ---------- GALERÍA DE FOTOS DEL CONVENIO ---------- */
+  .modal-img-wrap{ position:relative; }
+  .galeria-flecha{
+    position:absolute; top:50%; transform:translateY(-50%);
+    width:38px; height:38px; border-radius:50%; border:none; cursor:pointer;
+    background:rgba(0,0,0,0.45); color:#fff; font-size:22px; line-height:1;
+    display:none; align-items:center; justify-content:center; z-index:4;
+  }
+  .galeria-flecha:hover{ background:rgba(0,0,0,0.65); }
+  .galeria-flecha.izq{ left:10px; }
+  .galeria-flecha.der{ right:10px; }
+  .galeria-tira{ display:flex; gap:8px; padding:12px 18px 0; overflow-x:auto; background:#fff; }
+  .galeria-tira:empty{ display:none; }
+  .galeria-miniatura{
+    flex:0 0 auto; width:76px; height:56px; border-radius:10px; overflow:hidden; padding:0;
+    border:2px solid transparent; background: var(--gris-claro); cursor:pointer; opacity:0.7;
+    transition: opacity .15s, border-color .15s;
+  }
+  .galeria-miniatura img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .galeria-miniatura.activa{ border-color: var(--azul); opacity:1; }
+  .galeria-miniatura.cargando{ cursor:default; animation: galeriaPulso 1.1s ease-in-out infinite; }
+  @keyframes galeriaPulso{ 0%,100%{ opacity:0.35; } 50%{ opacity:0.8; } }
+  .galeria-admin{ display:flex; gap:10px; flex-wrap:wrap; }
+  .slot-foto{
+    position:relative; width:104px; height:78px; border:2px dashed #c7d2e0; border-radius:12px;
+    overflow:hidden; display:flex; align-items:center; justify-content:center;
+    background:#fff; color: var(--gris); font-size:26px; cursor:pointer; padding:0;
+  }
+  .slot-foto:hover{ border-color: var(--azul); }
+  .slot-foto.con-foto{ border-style:solid; border-color:#dde3ec; cursor:default; }
+  .slot-foto img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .slot-foto .quitar-foto{
+    position:absolute; top:4px; right:4px; width:22px; height:22px; border-radius:50%; border:none;
+    background:rgba(0,0,0,0.6); color:#fff; font-size:12px; cursor:pointer; line-height:1;
+  }
+  .slot-foto.cargando{ cursor:wait; font-size:12px; font-weight:700; }
+
   /* ---------- PANEL ADMIN ---------- */
   .admin-overlay{
     position:fixed; inset:0; background: rgba(4,20,40,0.65);
@@ -889,7 +927,12 @@
 <div class="modal-overlay" id="modalDetalle" onclick="cerrarModalDetalleClickFuera(event)">
   <div class="modal-detalle">
     <button class="cerrar-x" onclick="cerrarModalDetalle()">✕</button>
-    <img class="img-modal" id="modalImg" src="" alt="" style="display:none">
+    <div class="modal-img-wrap" id="modalImgWrap">
+      <img class="img-modal" id="modalImg" src="" alt="" style="display:none">
+      <button type="button" class="galeria-flecha izq" id="galeriaPrev" onclick="moverGaleria(-1)" aria-label="Foto anterior">‹</button>
+      <button type="button" class="galeria-flecha der" id="galeriaNext" onclick="moverGaleria(1)" aria-label="Foto siguiente">›</button>
+    </div>
+    <div class="galeria-tira" id="modalGaleriaTira"></div>
     <div class="contenido-modal">
       <span class="etiqueta-cat" id="modalCat">Categoría</span>
       <h3 id="modalEmpresa">Empresa</h3>
@@ -1157,6 +1200,12 @@
           <p>JPG o PNG · máx. 12 MB</p>
           <img class="preview" id="convImagenPreview">
         </div>
+      </div>
+      <div class="campo">
+        <label>Fotos adicionales del convenio <span style="font-weight:400;color:#6B7280;">(opcional · hasta 3)</span></label>
+        <div class="galeria-admin" id="galeriaAdminSlots"></div>
+        <input type="file" accept="image/*" id="galeriaInputArchivo" style="display:none" onchange="elegirFotoGaleria(event)">
+        <p style="margin:8px 0 0;font-size:12px;color:var(--gris);">JPG o PNG · máx. 12 MB c/u · se optimizan solas y solo se descargan cuando alguien abre el convenio.</p>
       </div>
       <div class="campo">
         <label>Redes sociales / enlaces directos</label>
@@ -1684,6 +1733,167 @@ function guardarCategorias(){
   lsSet(CLAVE_CATEGORIAS, JSON.stringify(categorias));
 }
 
+
+/* =========================================================
+   GALERÍA DE FOTOS DEL CONVENIO
+   - Las fotos adicionales NO viajan dentro del convenio: viven en su propio nodo
+     (galeriaConvenios/<id>) y solo se descargan cuando alguien abre ese convenio.
+     Por eso la portada y las categorías cargan igual de rápido que antes.
+   - Cada convenio guarda solo "numFotos" (un número) para saber si hay algo que bajar.
+   ========================================================= */
+const MAX_FOTOS_GALERIA = 3;                // cámbialo aquí si algún día quieres más de 3
+const RUTA_GALERIA = 'galeriaConvenios/';
+let galeriaTemp = [null, null, null];       // fotos del formulario (data URL)
+let galeriaSlotElegido = 0;
+let galeriaEditable = true;                 // false mientras no se hayan leído las fotos existentes
+let galeriaModificada = false;
+const galeriaCache = {};                    // convId -> fotos ya descargadas en esta sesión
+let galeriaTokenModal = 0;
+let galeriaActual = [];                     // [portada, ...fotos] del convenio abierto
+let galeriaIdx = 0;
+
+// Devuelve un arreglo de fotos ([] si no hay) o undefined si falló la lectura.
+async function leerGaleriaFirebase(convId){
+  try{
+    const db = await initFirebase();
+    if(!db) return undefined;
+    const snap = await db.ref(RUTA_GALERIA + convId).get();
+    if(!snap.exists()) return [];
+    const v = snap.val();
+    return (Array.isArray(v) ? v : Object.values(v)).filter(Boolean);
+  }catch(e){ console.warn('Error leyendo la galería:', e); return undefined; }
+}
+async function obtenerGaleriaConvenio(convId){
+  if(galeriaCache[convId]) return galeriaCache[convId];
+  const fotos = await leerGaleriaFirebase(convId);
+  if(Array.isArray(fotos)) galeriaCache[convId] = fotos;
+  return fotos;
+}
+async function guardarGaleriaConvenio(convId, fotos){
+  const lista = (fotos || []).filter(Boolean);
+  const ok = lista.length ? await fbSet(RUTA_GALERIA + convId, lista) : await fbDel(RUTA_GALERIA + convId);
+  if(ok) galeriaCache[convId] = lista;
+  return ok;
+}
+
+/* ---------- Modal de detalle (lo que ven los colaboradores) ---------- */
+function prepararGaleriaModal(conv){
+  const token = ++galeriaTokenModal;
+  galeriaActual = conv.imagen ? [conv.imagen] : [];
+  galeriaIdx = 0;
+  const tira = document.getElementById('modalGaleriaTira');
+  tira.innerHTML = '';
+  actualizarFlechasGaleria();
+  const n = Math.min(Number(conv.numFotos) || 0, MAX_FOTOS_GALERIA);
+  if(n < 1) return;                          // sin fotos extra: no se descarga nada
+  const total = n + (conv.imagen ? 1 : 0);
+  for(let i=0; i<total; i++){                // "esqueleto" mientras llegan las fotos
+    const b = document.createElement('div'); b.className = 'galeria-miniatura cargando'; tira.appendChild(b);
+  }
+  obtenerGaleriaConvenio(conv.id).then(fotos=>{
+    if(token !== galeriaTokenModal) return;  // ya abriste otro convenio o cerraste esta ventana
+    if(!Array.isArray(fotos) || fotos.length === 0){ tira.innerHTML = ''; return; }
+    galeriaActual = (conv.imagen ? [conv.imagen] : []).concat(fotos.slice(0, MAX_FOTOS_GALERIA));
+    pintarTiraGaleria();
+    mostrarFotoGaleria(0);
+  });
+}
+function pintarTiraGaleria(){
+  const tira = document.getElementById('modalGaleriaTira');
+  tira.innerHTML = '';
+  if(galeriaActual.length < 2){ actualizarFlechasGaleria(); return; }
+  galeriaActual.forEach((src, i)=>{
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'galeria-miniatura';
+    b.setAttribute('aria-label', 'Ver foto ' + (i+1));
+    b.onclick = ()=> mostrarFotoGaleria(i);
+    const im = document.createElement('img'); im.src = src; im.alt = ''; im.decoding = 'async';
+    b.appendChild(im); tira.appendChild(b);
+  });
+  actualizarFlechasGaleria();
+}
+function mostrarFotoGaleria(i){
+  if(!galeriaActual.length) return;
+  galeriaIdx = (i + galeriaActual.length) % galeriaActual.length;
+  const imgEl = document.getElementById('modalImg');
+  imgEl.src = galeriaActual[galeriaIdx]; imgEl.style.display = 'block';
+  const tira = document.getElementById('modalGaleriaTira');
+  [...tira.children].forEach((b, k)=> b.classList.toggle('activa', k === galeriaIdx));
+  const activa = tira.children[galeriaIdx];
+  if(activa) tira.scrollLeft = Math.max(0, activa.offsetLeft - 18);
+}
+function moverGaleria(d){ if(galeriaActual.length > 1) mostrarFotoGaleria(galeriaIdx + d); }
+function actualizarFlechasGaleria(){
+  const ver = galeriaActual.length > 1 ? 'flex' : 'none';
+  document.getElementById('galeriaPrev').style.display = ver;
+  document.getElementById('galeriaNext').style.display = ver;
+}
+(function(){   // deslizar con el dedo en el celular
+  const w = document.getElementById('modalImgWrap'); let x0 = null;
+  w.addEventListener('touchstart', e=>{ x0 = e.touches[0].clientX; }, {passive:true});
+  w.addEventListener('touchend', e=>{
+    if(x0 === null) return;
+    const dx = e.changedTouches[0].clientX - x0; x0 = null;
+    if(Math.abs(dx) > 45) moverGaleria(dx < 0 ? 1 : -1);
+  });
+})();
+
+/* ---------- Formulario del convenio (lo que ves tú en modo edición) ---------- */
+async function cargarGaleriaParaFormulario(convId){
+  renderSlotsGaleriaAdmin();
+  const fotos = await obtenerGaleriaConvenio(convId);
+  if(document.getElementById('convEditId').value !== convId) return;   // cambió de convenio mientras cargaba
+  if(Array.isArray(fotos)){
+    galeriaTemp = [fotos[0] || null, fotos[1] || null, fotos[2] || null];
+    galeriaEditable = true;
+  }else{
+    mostrarAviso('⚠ No se pudieron cargar las fotos adicionales. No se modificarán al guardar.');
+  }
+  renderSlotsGaleriaAdmin();
+}
+function renderSlotsGaleriaAdmin(){
+  const cont = document.getElementById('galeriaAdminSlots');
+  if(!cont) return;
+  cont.innerHTML = '';
+  for(let i=0; i<MAX_FOTOS_GALERIA; i++){
+    const foto = galeriaTemp[i];
+    const slot = document.createElement('div');
+    if(!galeriaEditable){
+      slot.className = 'slot-foto cargando'; slot.textContent = 'cargando…';
+    }else if(foto){
+      slot.className = 'slot-foto con-foto';
+      const im = document.createElement('img'); im.src = foto; slot.appendChild(im);
+      const x = document.createElement('button'); x.type = 'button'; x.className = 'quitar-foto'; x.textContent = '✕'; x.title = 'Quitar esta foto';
+      x.onclick = ()=> quitarFotoGaleria(i); slot.appendChild(x);
+    }else{
+      slot.className = 'slot-foto'; slot.textContent = '＋'; slot.title = 'Agregar foto';
+      slot.onclick = ()=>{ galeriaSlotElegido = i; document.getElementById('galeriaInputArchivo').click(); };
+    }
+    cont.appendChild(slot);
+  }
+}
+async function elegirFotoGaleria(event){
+  const archivo = event.target.files[0];
+  event.target.value = '';
+  if(!archivo) return;
+  if(archivo.size > 12*1024*1024){ mostrarAviso('La imagen es muy pesada (máx. 12MB). Usa una más liviana.'); return; }
+  try{
+    // 1000 px y calidad 0.82: nítidas, pero más ligeras que la portada
+    const dataUrl = await comprimirImagenAltaCalidad(archivo, 1000, 0.82);
+    galeriaTemp[galeriaSlotElegido] = dataUrl;
+    galeriaModificada = true;
+    renderSlotsGaleriaAdmin();
+  }catch(err){
+    console.error(err);
+    mostrarAviso('No se pudo cargar esta imagen. Prueba con otra (JPG o PNG).');
+  }
+}
+function quitarFotoGaleria(i){
+  galeriaTemp[i] = null;
+  galeriaModificada = true;
+  renderSlotsGaleriaAdmin();
+}
+
 async function guardarUnConvenio(conv){
   await fbSet('convenios/' + conv.id, conv);
   const ids = convenios.map(c=>c.id);
@@ -1700,6 +1910,8 @@ async function guardarUnConvenio(conv){
 
 function eliminarUnConvenioDeStorage(convId){
   fbDel('convenios/' + convId);
+  fbDel(RUTA_GALERIA + convId);   // también sus fotos adicionales
+  delete galeriaCache[convId];
   const ids = convenios.filter(c=>c.id!==convId).map(c=>c.id);
   fbSet('conveniosIdx', ids);
   conveniosMeta = conveniosMeta.filter(m=>m.id!==convId);
@@ -1905,6 +2117,8 @@ function abrirDetalleConvenio(convId){
   if(conv.imagen){ imgEl.src = conv.imagen; imgEl.style.display='block'; }
   else { imgEl.style.display='none'; }
 
+  prepararGaleriaModal(conv);
+
   document.getElementById('modalCat').textContent = (cat ? cat.icono+' '+cat.nombre : 'Convenio');
   document.getElementById('modalEmpresa').textContent = conv.empresa;
 
@@ -1936,6 +2150,7 @@ function abrirDetalleConvenio(convId){
   document.getElementById('modalDetalle').classList.add('activo');
 }
 function cerrarModalDetalle(){
+  galeriaTokenModal++;   // cancela cualquier descarga de fotos pendiente
   document.getElementById('modalDetalle').classList.remove('activo');
 }
 function cerrarModalDetalleClickFuera(e){
@@ -2436,6 +2651,19 @@ function abrirFormConvenio(convId){
   }
   document.getElementById('convRedUrl').value = '';
   renderRedesFormConvenio();
+
+  // Fotos adicionales: se leen de su propio nodo, solo al editar ese convenio.
+  galeriaTemp = [null, null, null];
+  galeriaModificada = false;
+  galeriaEditable = true;
+  if(esEdicion){
+    const convFotos = convenios.find(c=>c.id===convId);
+    if(convFotos && Number(convFotos.numFotos) > 0){
+      galeriaEditable = false;          // bloqueado hasta que carguen (así nunca pisamos fotos que no vimos)
+      cargarGaleriaParaFormulario(convId);
+    }
+  }
+  renderSlotsGaleriaAdmin();
   document.getElementById('formConvenioOverlay').classList.add('activo');
 }
 function cerrarFormConvenio(){
@@ -2494,6 +2722,14 @@ async function guardarConvenio(){
     redes: convRedesTemp.map(r=>({...r}))
   };
 
+  // Fotos adicionales: solo se guarda aquí la CANTIDAD (un número chiquito). Las fotos
+  // viajan aparte (nodo galeriaConvenios) para que no engorden el convenio ni la carga
+  // de las categorías.
+  const convPrevioFotos = id ? convenios.find(c=>c.id===id) : null;
+  const numFotosPrevio = (convPrevioFotos && Number(convPrevioFotos.numFotos)) || 0;
+  const tocarGaleria = galeriaEditable && galeriaModificada;
+  datos.numFotos = tocarGaleria ? galeriaTemp.filter(Boolean).length : numFotosPrevio;
+
   // Guardamos una copia del estado previo por si hay que revertir
   const idxPrevio = id ? convenios.findIndex(c=>c.id===id) : -1;
   const convenioPrevio = idxPrevio>-1 ? convenios[idxPrevio] : null;
@@ -2523,12 +2759,23 @@ async function guardarConvenio(){
     return; // no cerramos el formulario para que no se pierda lo escrito
   }
 
+  // Ahora sí, las fotos adicionales (si las cambiaste)
+  let avisoFotos = '';
+  if(tocarGaleria){
+    const okFotos = await guardarGaleriaConvenio(convenioFinal.id, galeriaTemp);
+    if(!okFotos){
+      avisoFotos = '⚠ El convenio se guardó, pero no se pudieron guardar las fotos adicionales (revisa los permisos de Firebase).';
+      convenioFinal.numFotos = numFotosPrevio;
+      try{ await guardarUnConvenio(convenioFinal); }catch(e){ console.warn(e); }
+    }
+  }
+
   renderListaConveniosAdmin();
   renderListaCategoriasAdmin();
   renderPortada();
   if(categoriaActivaId) renderConvenios(categoriaActivaId);
   cerrarFormConvenio();
-  mostrarAviso('Convenio guardado ✓');
+  mostrarAviso(avisoFotos || 'Convenio guardado ✓');
 }
 
 async function eliminarConvenio(convId){
@@ -2590,11 +2837,18 @@ async function exportarDatos(){
   // Por si se exporta justo al abrir el panel, antes de que termine de
   // llegar la lista completa de convenios.
   await asegurarConveniosCargados(conveniosMeta.map(m=>m.id));
+  // Fotos adicionales de cada convenio (si tiene)
+  const galerias = {};
+  await Promise.all(convenios.filter(c=>Number(c.numFotos)>0).map(async c=>{
+    const fotos = await obtenerGaleriaConvenio(c.id);
+    if(fotos && fotos.length) galerias[c.id] = fotos;
+  }));
   const respaldo = {
     version: 1,
     fecha: new Date().toISOString(),
     categorias,
     convenios,
+    galerias,
     textos,
     contactos
   };
@@ -2669,6 +2923,10 @@ Esto reemplazará todos los datos actuales.`)){
         lsSet(PREFIJO_CONVENIO+conv.id, JSON.stringify(conv));
       }
       await fbSet('convenios', convObj);
+      if(datos.galerias && typeof datos.galerias === 'object'){
+        await fbSet('galeriaConvenios', datos.galerias);
+        Object.keys(galeriaCache).forEach(k=> delete galeriaCache[k]);
+      }
       await fbSet('conveniosIdx', convenios.map(c=>c.id));
       await fbSet('textos', textos);
       await fbSet('contactos', contactos);
