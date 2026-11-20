@@ -391,6 +391,23 @@
   .modal-detalle{ position:relative; }
 
 
+  /* ---------- CARRUSEL EN LA TARJETA (al acercar el cursor o deslizar) ---------- */
+  .convenio-card .img-wrap img{ transition: opacity .17s ease; }
+  .badge-fotos{
+    position:absolute; top:10px; right:10px; z-index:2;
+    background:rgba(4,31,61,0.72); color:#fff; font-size:11px; font-weight:700;
+    padding:3px 9px; border-radius:999px; pointer-events:none;
+  }
+  .card-puntos{
+    position:absolute; left:0; right:0; bottom:9px; z-index:2;
+    display:flex; justify-content:center; gap:5px; pointer-events:none;
+  }
+  .card-puntos span{
+    width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,0.55);
+    box-shadow:0 0 4px rgba(0,0,0,0.45); transition: transform .15s, background .15s;
+  }
+  .card-puntos span.activo{ background:#fff; transform:scale(1.3); }
+
   /* ---------- GALERÍA DE FOTOS DEL CONVENIO ---------- */
   .modal-img-wrap{ position:relative; }
   .galeria-flecha{
@@ -1894,6 +1911,88 @@ function quitarFotoGaleria(i){
   renderSlotsGaleriaAdmin();
 }
 
+/* ---------- Carrusel en la tarjeta ----------
+   Con el cursor encima (o deslizando con el dedo) las fotos del convenio van pasando,
+   sin abrirlo. Las fotos extra se descargan HASTA que te quedas ~0.25 s sobre esa
+   tarjeta o la deslizas, y una sola vez por sesión: la lista de convenios sigue igual de ligera. */
+const REDUCIR_MOVIMIENTO = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+let detenerCarruselActivo = null;
+function pausarCarruselTarjeta(){ if(detenerCarruselActivo){ const f = detenerCarruselActivo; detenerCarruselActivo = null; f(); } }
+
+function activarCarruselTarjeta(card, conv){
+  const wrap = card.querySelector('.img-wrap');
+  const img = wrap && wrap.querySelector('img');
+  const puntos = wrap && wrap.querySelector('.card-puntos');
+  const n = Math.min(Number(conv.numFotos) || 0, MAX_FOTOS_GALERIA);
+  if(!img || !conv.imagen || n < 1) return;          // convenios sin fotos extra: todo queda como siempre
+
+  let fotos = [conv.imagen], idx = 0, cargada = false, cargando = false;
+  let espera = null, timer = null, cambio = null;
+
+  function pintarPuntos(){
+    if(!puntos) return;
+    puntos.innerHTML = '';
+    if(fotos.length < 2) return;
+    fotos.forEach((_, i)=>{ const p = document.createElement('span'); if(i === idx) p.className = 'activo'; puntos.appendChild(p); });
+  }
+  function ir(i, conAnimacion){
+    idx = (i + fotos.length) % fotos.length;
+    const src = fotos[idx];
+    clearTimeout(cambio);
+    if(conAnimacion === false){ img.style.opacity = '1'; img.src = src; pintarPuntos(); return; }
+    img.style.opacity = '0';
+    cambio = setTimeout(()=>{ img.src = src; img.style.opacity = '1'; pintarPuntos(); }, 170);
+  }
+  async function asegurarFotos(){
+    if(cargada) return true;
+    if(cargando) return false;
+    cargando = true;
+    const extra = await obtenerGaleriaConvenio(conv.id);
+    cargando = false;
+    if(!Array.isArray(extra) || extra.length === 0) return false;
+    fotos = [conv.imagen].concat(extra.slice(0, MAX_FOTOS_GALERIA));
+    cargada = true;
+    return true;
+  }
+  function detener(){
+    clearTimeout(espera); clearInterval(timer); espera = null; timer = null;
+    if(cargada){ ir(0, false); if(puntos) puntos.innerHTML = ''; }   // vuelve a la portada
+  }
+
+  // --- Mouse: se queda 0.25 s encima → baja las fotos y empiezan a pasar solas
+  card.addEventListener('pointerenter', (e)=>{
+    if(e.pointerType !== 'mouse' || REDUCIR_MOVIMIENTO) return;
+    pausarCarruselTarjeta();
+    clearTimeout(espera);
+    espera = setTimeout(async ()=>{
+      if(!(await asegurarFotos())) return;
+      if(!card.matches(':hover')) return;               // ya quitó el cursor mientras descargaba
+      detenerCarruselActivo = detener;
+      pintarPuntos(); ir(1);
+      timer = setInterval(()=> ir(idx + 1), 1400);
+    }, 250);
+  });
+  card.addEventListener('pointerleave', (e)=>{
+    if(e.pointerType !== 'mouse') return;
+    if(detenerCarruselActivo === detener) detenerCarruselActivo = null;
+    detener();
+  });
+
+  // --- Celular: deslizar el dedo sobre la foto de la tarjeta cambia de foto (tocar sigue abriendo el convenio)
+  let x0 = null;
+  wrap.addEventListener('touchstart', (e)=>{ x0 = e.touches[0].clientX; }, {passive:true});
+  wrap.addEventListener('touchend', (e)=>{
+    if(x0 === null) return;
+    const dx = e.changedTouches[0].clientX - x0; x0 = null;
+    if(Math.abs(dx) < 40) return;                       // fue un toque normal
+    e.preventDefault();                                 // evita que el deslizamiento abra el convenio
+    asegurarFotos().then(ok=>{
+      if(!ok) return;
+      pintarPuntos(); ir(idx + (dx < 0 ? 1 : -1));
+    });
+  }, {passive:false});
+}
+
 async function guardarUnConvenio(conv){
   await fbSet('convenios/' + conv.id, conv);
   const ids = convenios.map(c=>c.id);
@@ -2031,6 +2130,7 @@ async function abrirCategoria(catId){
 }
 
 function renderConvenios(catId){
+  pausarCarruselTarjeta();
   const grid = document.getElementById('gridConvenios');
   grid.innerHTML = '';
   // Un visitante normal solo ve los publicados. En modo edición (tú, con la
@@ -2089,6 +2189,7 @@ function renderConvenios(catId){
       <div class="img-wrap">
         ${esBorrador ? `<span class="badge-borrador">🔒 Solo tú lo ves</span>` : ''}
         ${conv.imagen ? `<img src="${conv.imagen}" alt="${escapeHtml(conv.empresa)}">` : `<span class="sin-imagen">Sin imagen aún</span>`}
+        ${(conv.imagen && Number(conv.numFotos) > 0) ? `<span class="badge-fotos">📷 ${Math.min(Number(conv.numFotos), MAX_FOTOS_GALERIA) + 1}</span><div class="card-puntos"></div>` : ''}
       </div>
       <div class="cuerpo">
         <p class="empresa">${escapeHtml(conv.empresa)}</p>
@@ -2101,6 +2202,7 @@ function renderConvenios(catId){
       </div>
     `;
     grid.appendChild(card);
+    activarCarruselTarjeta(card, conv);
   });
 }
 
@@ -2117,6 +2219,7 @@ function abrirDetalleConvenio(convId){
   if(conv.imagen){ imgEl.src = conv.imagen; imgEl.style.display='block'; }
   else { imgEl.style.display='none'; }
 
+  pausarCarruselTarjeta();
   prepararGaleriaModal(conv);
 
   document.getElementById('modalCat').textContent = (cat ? cat.icono+' '+cat.nombre : 'Convenio');
